@@ -1,0 +1,175 @@
+# Recherche de genes informatifs par ACP
+# A partir de la matrice virtuelle initiale
+
+op <- par(no.readonly = TRUE)
+memory.limit(size = 4000)
+library(MASS)
+library(KernSmooth)
+library(mvtnorm)
+library(lattice)
+library(limma)
+library(multtest)
+library(gplots)
+library(mclust)
+library(impute)
+library(RDRToolbox)
+library(survival)
+source("D:\\Stats\\Doc R\\Scripts R\\graph3D.8.R")
+source("D:\\Stats\\Doc R\\Scripts R\\rb.colors.R")
+source("D:\\Stats\\Doc R\\Scripts R\\plot.express.R")
+source("D:\\Stats\\Doc R\\Scripts R\\heatmap.3.R")
+source("D:\\Stats\\Doc R\\Scripts R\\rot3D.R")
+
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")
+
+##############################################################################
+
+
+	# Chemores miR T vs. N appariés
+data.address <- "D:/Projets individuels/Meta Analyses Poumon/Lung DNA Repair/Lung Chemores GE/MIR/dataCombined_NQ_noCtrl_noFlag_redMir_NA15_KNN_copie_v4 (hsa).txt"
+info.address <- "D:/Projets individuels/Meta Analyses Poumon/Lung DNA Repair/Lung Chemores GE/MIR/target_v3.txt"
+eset <- read.table(data.address, header = T, sep = "\t")
+infos <- read.table(info.address, header = T, sep = "\t")
+infos <- infos[order(infos$FileName),]
+miRs <- eset[,1:2]
+eset <- eset[,-c(1:2)]
+eset <- eset[,order(colnames(eset))]
+grp <- factor(infos$Status)
+
+par(mfrow = c(1, 2))
+iso1 <- Isomap(as.matrix(eset), dims = 2:10, k = 10, plotResiduals = T)
+iso2 <- Isomap(as.matrix(t(eset)), dims = 2:10, k = 10, plotResiduals = T)
+par(op)
+pairs(iso1$dim5)
+
+	# Choix
+X <- as.data.frame(iso1$dim8)
+X <-scale(X)
+X <- as.data.frame(X)
+
+# mtest <- Mclust(X, G = 2, method = "V")
+
+alpha = 1e-2
+
+Qmax = 1 - alpha
+Q <- qchisq(p = Qmax, df = ncol(X)-1)
+D <- apply(X^2, 1, sum)
+# pt.col <- ifelse(D>=Q, "red", "grey")
+
+theta <- seq(0, 90, by = 1)
+x1 <- sqrt(Q)*cos(theta)
+y1 <- sqrt(Q)*sin(theta)
+
+plot(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)
+points(X, cex = 0.2, pch = 19, col = ifelse(D>=Q, "royalblue4", "grey"), asp = 1)
+
+graph3D.7(X[,1:3], bold = T, class1 = ifelse(D>=Q, 1, 2))
+
+inform <- which(D>=Q)
+length(inform)
+
+pairs(iso1$dim5, cex = 0.25, col = ifelse(D>=Q, "royalblue4", "grey"), pch = 19)
+
+
+	# Filtre et ACPs finales
+sub1 <- eset[inform,]
+iso3 <- Isomap(as.matrix(sub1), dims = 2:10, k = 10, plotResiduals = T)	# genes = obs ; exp = variables
+iso4 <- Isomap(as.matrix(t(sub1)), dims = 2:10, k = 10, plotResiduals = T)	# exp = obs ; genes = variables
+
+par(mfrow=c(2,2))
+	PC3 <- iso2$dim3[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(iso2$dim2, asp = 1, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (all probes)")
+
+	plot(iso2$dim2, cex = 0.2, col = "royalblue4", main = "", asp = 1)
+	title(main = paste("Number of informative probes\n", length(inform), "of", nrow(eset)))
+
+	plot.new()
+	legend("center", legend = levels(grp), col= mycol[1:nlevels(grp)], pch = 19, cex = 1.5, bty = "n" )
+
+	PC3 <- iso4$dim3[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(iso4$dim2, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (informative probes)", asp = 1)
+par(op)
+
+
+# graph3D.7(iso4$dim3, bold = T, class1 = grp)
+
+heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(ncol(sub1)), key = TRUE, trace = "none", density = "none",
+	labRow = grp, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = mycol[grp])
+
+
+	# Extra-graph pour Chemores : tag des %cell.Tum
+		NAs <- which(is.na(infos$TumCellPercent))
+		pcells <- infos$TumCellPercent[-NAs]
+		T.index <- which(infos$Status=="Tumor")
+
+		plot(iso4$dim2, pch = 19, cex = 1.5, col = mycol[grp], main = "Experiments (informative probes)", asp = 1)
+		points(iso4$dim2[T.index, ], pch = 1, cex = 1, col = ifelse(pcells>=50, "red", "white"))
+	
+	# Extra-graph pour Chemores miR: tag des adk vs. scc
+
+		grp2 <- infos$Disease
+		grp3 <- ifelse(grp == "Normal", "Normal", ifelse(grp2=="AC", "AC", "SCC"))
+		grp3 <- factor(grp3)
+		plot(iso4$dim2, pch = 19, cex = pcex, col = c("darkred", "grey60","navy")[grp3], main = "Experiments (informative probes)", asp = 1)
+
+		heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(ncol(sub1)), key = TRUE, trace = "none", density = "none",
+			labRow = grp, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = c("darkred", "grey60","navy")[grp3])
+
+		graph3D.8(iso4$dim3, bold = T, class1 = grp3, class2 = grp2, Cols = c("darkred", "seagreen1","navy"), size = 1.5)
+		plot.new(); legend("center", legend = levels(grp:grp2), pch = c(19, 19, 17, 17), col = unique(mycol[1:nlevels(grp:grp2)]), cex = 1.5, bty = "n")
+
+		plotDR(data = iso4$dim3, labels = grp3)
+
+		rot3D(iso4$dim3, rotation = "y.axis", Col = c("darkred", "grey60","navy")[grp3], n.image = 32)
+	#
+
+
+	# Test de la sélection sur la survie
+
+index.T <- which(infos$Status=="Tumor")
+Time <- infos$Time[index.T]
+dcd <- infos$Status_DCD[index.T]
+st <- Surv(Time, dcd)
+
+P <- c()
+for(i in 1:nrow(eset)){
+	x <- as.numeric(eset[i, index.T])
+	coxmod <- coxph(st~x)
+	p <- summary(coxmod)$coefficients[5]
+	P <- c(P, p)
+	}
+
+surv.res <- cbind.data.frame(miRs[, 1], pval = P)
+
+surv.res[order(surv.res$pval, decreasing = F),]
+best.mir <- which(surv.res$pval<0.01)
+
+par(mfrow = c(4, 4))
+for(i in best.mir){
+	x <- as.numeric(eset[i, index.T])
+	km <- survfit(st~factor(ifelse(x<median(x, na.rm = T), 1, 2)))
+	plot(km); title(main = paste(surv.res[i, 1], "; p =", surv.res[i, 2]))
+	}
+par(op)
+
+P <- c()
+for(i in inform){
+	x <- as.numeric(eset[i, index.T])
+	coxmod <- coxph(st~x)
+	p <- summary(coxmod)$coefficients[5]
+	P <- c(P, p)
+	}
+surv.res2 <- cbind.data.frame(miRs[inform, 1], pval = P)
+surv.res2[order(surv.res2$pval, decreasing = F),]
+
+
+i = inform[93]
+	x <- as.numeric(eset[i, index.T])
+	km <- survfit(st~factor(ifelse(x<median(x, na.rm = T), 1, 2)))
+	plot(km); title(main = paste(surv.res[i, 1], "; p =", surv.res[i, 2]))

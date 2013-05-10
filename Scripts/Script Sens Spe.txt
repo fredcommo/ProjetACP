@@ -1,0 +1,72 @@
+change <- rep("nonDiff", nrow(eset))
+change[index.probes] <- "Diff"
+
+res <- c()
+	
+		for(first in 1:3)
+			for(last in (first+1):5)
+				for(i in seq(1, 10)){
+
+					alpha = 10^(-i)
+
+					X <- as.data.frame(acp1$x[,first:last])
+					X <-scale(X)
+					X <- as.data.frame(X)
+
+					Qmax = 1 - alpha
+					Q <- qchisq(p = Qmax, df = ncol(X)-1)
+					D <- apply(X^2, 1, sum)
+					inform <- which(D>=Q)
+
+					Found <- rep("nonDiff", nrow(eset))
+					Found[inform] <- "Diff"
+
+					mytab <- table(change, Found)
+					tvp <- mytab[1,1]/sum(mytab[1,])
+					tfp <- mytab[2,1]/sum(mytab[2,])
+					error <- (mytab[2, 1])/sum(mytab[,1])
+					cat("first =", first, "last =", last, "alpha =", alpha, "\n")
+
+					res <- rbind(res, c(i, alpha, first, last, tvp, tfp, error))
+					}
+
+colnames(res) <- c("log_p", "power", "first", "last", "sens", "spe", "error")
+head(res)
+
+res <- cbind.data.frame(res, score1 = res[,5]*(1-res[,6]), score2 = res[,5]*(1-res[,7]))
+
+	# graphe1 : sens vs. error
+plot(seq(0,1), xlim = range(0,1), type = "n", xlab = "Error rate", ylab = "Sensitivity rate")
+for(i in 1:3){
+	k = 1
+	for(j in (i+1):5){
+		sub <- res[which(res$first==i & res$last==j),]
+		lines(sub$sens~sub$error, type = "l", col = i+1, lty = k, lwd = 2)
+		k = k+1
+		tag <- c(tag, paste("PC", i, " to PC", j, sep = ""))
+		}
+	}
+
+legend("bottomleft", legend = tag[1:4], lwd = 2, lty = c(1, 2, 3, 4), col = 2, cex = 1, bty = "n")
+legend("bottom", legend = tag[5:7], lwd = 2, lty = c(1, 2, 3), col = 3, cex = 1, bty = "n")
+legend("bottomright", legend = tag[8:9], lwd = 2, lty = c(1, 2), col = 4, cex = 1, bty = "n")
+
+
+	# graphe2 : score vs. log(p)
+plot(seq(0,1, len = 10)~seq(1, 10), type = "n", xlab = "-log10(alpha)", ylab = "Perf = Sens x (1 - error)")
+tag <- c()
+
+for(i in 1:3){
+	k = 1
+	for(j in (i+1):5){
+		sub <- res[which(res$first==i & res$last==j),]
+		lines(sub$score2~sub$log_p, type = "l", col = i+1, lty = k, lwd = 2)
+		k = k+1
+		tag <- c(tag, paste("PC", i, " to PC", j, sep = ""))
+		}
+	}
+
+legend("topleft", legend = tag[1:4], lwd = 2, lty = c(1, 2, 3, 4), col = 2, cex = 1, bty = "n")
+legend("top", legend = tag[5:7], lwd = 2, lty = c(1, 2, 3), col = 3, cex = 1, bty = "n")
+legend("topright", legend = tag[8:9], lwd = 2, lty = c(1, 2), col = 4, cex = 1, bty = "n")
+

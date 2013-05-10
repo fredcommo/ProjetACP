@@ -1,0 +1,178 @@
+
+	# Diagnostic sur la valeur de alpha
+X <- as.data.frame(acp1$x[,2:3])	# X <- as.data.frame(acp2$x[,2:3]) # série Daniel gautheret
+X <- scale(X)
+X <- as.data.frame(X)
+D <- rowSums(X^2)
+# a.values <- c(0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 5))
+a.values <- c(0.025, 0.5, 5)
+
+par(mfrow = c(3, 2))
+Score <- S2 <- sum.trace <- c()
+for(a in a.values){
+	alpha = 10^(-a)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X))
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	plot(X, cex = 0.2, pch = 19, col = ifelse(D<=Q, "royalblue4", "grey"))
+	points(y1~x1, col = "red", cex = 0.1, pch = 8, xlim = range(X))
+	inform <- which(D<=Q)
+	title(main = paste(length(inform), "probes"))
+	tmp.n.select <- tmp.S2 <- tmp.sum.trace <- NA
+	if(length(inform)>0){
+		tmp.n.select <- length(inform)
+		sub.inf <- t(eset[inform,])
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5, col = mycol[grp], xlim = range(-120, 120), ylim = range(-120, 120))
+		plot(prcomp(sub.inf)$x[, 1:2], pch = 19, , col = mycol[grp], cex = 1.5)
+		# tmp.S2 <- var(as.vector(as.matrix(sub.inf)))
+		# tmp.sum.trace <- sum(diag(var(sub.inf)))
+		}
+	# Score <- rbind(Score, c(a, tmp.n.select, tmp.sum.trace, tmp.S2))
+	# S2 <- c(S2, tmp.S2)
+	# sum.trace <- c(sum.trace, tmp.sum.trace)
+	}
+# plot(sum.trace, a.values)
+par(op)
+
+	# calcul de la trace
+Score <- c()
+a.values <- c(1e-5, 1e-4, 0.001, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 20, by = 2))
+for(a in a.values){
+	alpha = 10^(-a)
+	Pmax = 1 - alpha
+	Q <- qchisq(p = Pmax, df = ncol(X))
+	inform <- which(D<=Q)
+	lInf <- length(inform)
+
+	tmp.n.select <- tmp.S2 <- tmp.sum.trace <- NA
+	if(lInf>0 & lInf<nrow(eset)){
+		tmp.n.select <- length(inform)
+		sub.inf <- t(eset[inform,])
+
+			# calculer les variances sur les axes1 et 2 de la nouvelle acp ?
+		acp.test <- prcomp(sub.inf)
+		tmp.S2 <- var(as.vector(as.matrix(sub.inf)))
+		tmp.sum.trace <- sum(diag(var(acp.test$x[,1:3])))
+		Score <- rbind(Score, c(a, tmp.n.select, tmp.S2, tmp.sum.trace))
+		}
+	}
+Score <- as.data.frame(Score)
+colnames(Score) <- c("aValues", "nProbes", "S2", "sumTrace")
+plot(log10(Score$aValues), Score$sumTrace, xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")
+Score
+
+
+x <- as.numeric(log(Score$aValues))
+y <- as.numeric(Score$sumTrace)
+plot(x, y)
+
+if(any(is.na(y) | is.na(x))){
+	na.index <- which(is.na(y) | is.na(x))
+	y <- y[-na.index]
+	x <- x[-na.index]
+	}
+
+# Fonction logistique 5PL
+	Richard <- function(x, Fb, Fmax, b, c, d){
+		y <- Fb + (Fmax - Fb)/(1 + exp(-(x-c)/b))^d
+		return(y)
+		}
+
+# Fonction sce (somme carré résidus) avec pondérations
+	sce.5P <- function(param, xobs, yobs, w) {
+		Fb <- param[1]
+		Fmax <- param[2]
+		b <- param[3]
+		c <- param[4]
+		d <- param[5]
+		ytheo <- Richard(xobs, Fb, Fmax, b, c, d)
+		sq.res <- (yobs - ytheo)^2
+		weights <- 1/sq.res^w
+		return(sum(weights*sq.res))
+		}
+
+# Fonction sce (somme carré résidus) avec pondérations
+	sce.5P.diag <- function(yobs, ytheo, w) {
+		sq.res <- (yobs - ytheo)^2
+		weights <- 1/sq.res^w
+		return(weights)
+		}
+
+# initialisation des parametres
+Fb.ini = min(y)
+Fmax.ini = max(y)	#*1.05
+c.ini = (max(x) + min(x))/2
+z <- (y)/(Fmax.ini - y)
+if (any(abs(z)==Inf)) z[abs(z)==Inf] <- NA
+b.ini = coef(lm(x~log(z)))[2]
+d.ini = 1
+init <- c(Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)
+w = 0
+
+# Estimation du modele
+	best<-nlm(f = sce.5P, p = init, xobs = x, yobs = y, w = w)
+
+# Récupération des paramètres
+	best.Fb <- best$estimate[1]
+	best.Fmax <- best$estimate[2]
+	best.b<-best$estimate[3]
+	best.c <- best$estimate[4]
+	best.d <- best$estimate[5]
+
+# Diagnostic de régression
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)
+
+	plot(x, y)
+	lines(yfit~newx)
+	# abline(h = c(best.Fb, best.Fmax))
+	yTarg = (best.Fmax + best.Fb)* 0.10
+	xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)
+	points(xTarg, yTarg, pch = 19, cex = 1.5, col = "red3")
+
+	aTarg <- exp(xTarg)
+
+	alpha = 10^(-aTarg)
+	Pmax = 1 - alpha
+	Q <- qchisq(p = Pmax, df = ncol(X))
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	# plot(X, cex = 0.2, pch = 19, col = ifelse(D>=Q, "royalblue4", "grey"), asp = 1)
+	# points(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)
+	inform <- which(D>=Q)
+	nInform <- length(inform)
+	nNonInform <- nrow(eset) - nInform
+	nInform
+
+	esetInform <- eset[inform,]
+	esetNonInform <- eset[-inform,]
+
+	acpInf <- prcomp(t(esetInform))			# exp = obs ; genes = variables
+	acpNonInf <- prcomp(t(esetNonInform))			# exp = obs ; genes = variables
+
+	par(mfrow = c(1, 2))
+	PC3 <- acpNonInf$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 1
+	plot(acpNonInf$x[, 1:2], pch = 19, cex = pcex, col = mycol[grp], main = paste("PCA on", nNonInform, "non informative probes"), xlim = range(acpInf$x), asp = 1)
+
+	PC3 <- acpInf$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 1
+	plot(acpInf$x[, 1:2], pch = 19, cex = pcex, col = mycol[grp], main = paste("PCA on", nInform, "informative probes"))
+	par(op)
+
+
+	clust <- hclust(dist(acpInf$x[,1:2]), "ward")
+	plot(clust)

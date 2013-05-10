@@ -1,0 +1,53 @@
+
+
+	alpha = 10^(-a)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	n.inform <- which(D < Q)
+	inform <- which(D >= Q)
+	length(n.inform); length(inform)
+
+
+a.values <- c(0.1, 0.25, 0.5, seq(1, 20))
+
+cat("Performing traces calculation...\n")
+n.select <- S2 <- sum.trace <- c()
+
+for(a in a.values){
+
+	# a = 16
+	alpha = 10^(-a)
+	Pmax = 1 - alpha
+	Q <- qchisq(p = Pmax, df = 1)
+	# inform <- which(D<Q); length(inform)
+	inform <- which(D >= Q)
+
+	tmp.n.select <- tmp.S2 <- tmp.sum.trace <- NA
+	if(length(inform)>0){
+		sub.inf <- Data[inform,]
+		tmp.select <- length(inform)
+		tmp.S2 <- var(as.vector(as.matrix(sub.inf)))
+		tmp.sum.trace <- sum(diag(var(sub.inf)))
+		}
+	n.select <- rbind(n.select, c(a, tmp.select))
+	S2 <- c(S2, tmp.S2)
+	sum.trace <- c(sum.trace, tmp.sum.trace)
+
+	}
+	inform <- order(D, decreasing = T)[1:2]
+	sub.inf <- Data[inform,]
+	tmp.select <- length(inform)
+	tmp.S2 <- var(as.vector(as.matrix(sub.inf)))
+	tmp.sum.trace <- sum(diag(var(sub.inf)))
+
+	pmax <- pchisq(q = as.numeric(D[which.max(D)]), df = 1)
+	alpha = -exp(pmax)
+	a = 1 + alpha
+
+	n.select <- rbind(n.select, c(40, tmp.select))
+	S2 <- c(S2, tmp.S2)
+	sum.trace <- c(sum.trace, tmp.sum.trace)
+
+
+cbind(n.select, S2, sum.trace)
+

@@ -1,0 +1,671 @@
+# Recherche de genes informatifs par ACP
+# A partir de la matrice virtuelle initiale
+
+op <- par(no.readonly = TRUE)
+
+library(MASS)
+library(KernSmooth)
+library(mvtnorm)
+library(lattice)
+library(limma)
+library(multtest)
+library(gplots)
+library(mclust)
+library(impute)
+library(survival)
+source("E:\\Stats\\Doc R\\Scripts R\\graph3D.8.R")
+source("E:\\Stats\\Doc R\\Scripts R\\rb.colors.R")
+source("E:\\Stats\\Doc R\\Scripts R\\plot.express.R")
+source("E:\\Stats\\Doc R\\Scripts R\\heatmap.3.R")
+source("E:\\Stats\\Doc R\\Scripts R\\rot3D.2.R")
+
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")
+
+##############################################################################
+
+	# dose response IGR-CaP1/TXT
+data.address <- "F:/Sauvegarde Portable/Projets individuels/A.Chauchereau/transcriptome/P21_NN_GE/P21_NN_GE_LR_ComBat.txt"
+info.address <- "F:/Sauvegarde Portable/Projets individuels/A.Chauchereau/transcriptome/P21_NN_GE/P21_NN_GE_CaP_Annot.txt"
+eset <- read.table(data.address, header = T, sep = "\t")
+infos <- read.table(info.address, header = T, sep = "\t")
+grp <- factor(infos$R_Dose)
+
+
+	# Chemores miR T vs. N appariés
+data.address <- "D:/Projets individuels/Meta Analyses Poumon/Lung DNA Repair/Lung Chemores GE/MIR/dataCombined_NQ_noCtrl_noFlag_redMir_NA15_KNN_copie_v4 (hsa).txt"
+info.address <- "D:/Projets individuels/Meta Analyses Poumon/Lung DNA Repair/Lung Chemores GE/MIR/target_v3.txt"
+eset <- read.table(data.address, header = T, sep = "\t")
+infos <- read.table(info.address, header = T, sep = "\t")
+infos <- infos[order(infos$FileName),]
+miRs <- eset[,1:2]
+eset <- eset[,-c(1:2)]
+eset <- eset[,order(colnames(eset))]
+grp <- factor(infos$Status)
+
+
+	# Chemores miR T uniquement
+data.address <- "D:/Projets individuels/Meta Analyses Poumon/Lung DNA Repair/Lung Chemores GE/MIR/dataCombined_NQ_noCtrl_noFlag_redMir_NA15_KNN_copie_v4 (hsa).txt"
+info.address <- "D:/Projets individuels/Meta Analyses Poumon/Lung DNA Repair/Lung Chemores GE/MIR/target_v3.txt"
+eset <- read.table(data.address, header = T, sep = "\t")
+infos <- read.table(info.address, header = T, sep = "\t")
+infos <- infos[order(infos$FileName),]
+miRs <- eset[,1:2]
+eset <- eset[,-c(1:2)]
+eset <- eset[,order(colnames(eset))]
+T.index <- which(infos$Status=="Tumor")
+eset <- eset[,T.index]
+infos <- infos[T.index,]
+grp <- factor(infos$Disease)
+
+
+	# Chemores GE moyennes des sondes corrélées
+data.address <- "D:/Projets individuels/Meta Analyses Poumon/Lung DNA Repair/Lung Chemores GE/P20_che2_GE_ProbesAve(34886genes)_v2.txt"
+info.address <- "D:/Projets individuels/Meta Analyses Poumon/Lung DNA Repair/Lung Chemores GE/patients_annot_123_v7_aic.txt"
+eset <- read.table(data.address, header = T, sep = "\t")
+infos <- read.table(info.address, header = T, sep = "\t")
+infos <- infos[order(infos$GE_combined),]
+genes <- eset[,1:3]
+eset <- eset[,-c(1:3)]
+eset <- eset[,order(colnames(eset))]
+RSums <- apply(eset, 1, sum)
+eset <- eset[-which(RSums==0),]
+genes <- genes[-which(RSums==0),]
+grp <- factor(infos$Histology.1)# grp <- factor(infos$IHC_status1)
+
+
+	# Jacobson (Consortium)
+data.address <- "G:/Sauvegarde Portable/Databases GE/Data sets Poumon/Jacobson/Jacobson.ComBatOnLog.txt"
+info.address <- "G:/Sauvegarde Portable/Databases GE/Data sets Poumon/Jacobson/Jacobson.patients.txt"
+eset <- read.table(data.address, header = T, sep = "\t")
+infos <- read.table(info.address, header = T, sep = "\t")
+
+# ! vérifier !
+infos <- infos[order(infos$site.Id),]
+eset <- eset[,order(colnames(eset))]
+array.ids <- substr(as.character(colnames(eset)), 4, 50)
+verif <- ifelse(array.ids==infos$site.Id, "ok", "error")
+length(which(verif=="error"))
+
+Time.surv <- infos$MONTHS_TO_LAST_CONTACT_OR_DEATH
+status.dead <- c(0,1)[infos$VITAL_STATUS]
+st.surv <- Surv(Time.surv, status.dead)
+
+Time.prog <- infos$MONTHS_TO_FIRST_PROGRESSION
+status.prog <- ifelse(infos$FIRST_PROGRESSION_OR_RELAPSE=="Yes", 1, ifelse(infos$FIRST_PROGRESSION_OR_RELAPSE=="No", 0, NA))
+st.prog <- Surv(Time.prog, status.prog)
+
+infos$Histologic_differenciation <- relevel(infos$Histologic_differenciation, ref = "poor")
+grp <- factor(infos$Histologic_differenciation)# grp <- factor(infos$IHC_status1)
+
+
+	# Van Veer
+data.address <- "G:/Sauvegarde Portable/Databases GE/data van veer/CompleteLog.txt"
+info.address <- "G:/Sauvegarde Portable/Databases GE/data van veer/Annot.txt"
+eset <- read.table(data.address, header = T, sep = "\t")
+infos <- read.table(info.address, header = T, sep = "\t")
+infos$Angioinvasion <- factor(infos$Angioinvasion)
+infos$LymphInfiltrate <- factor(infos$LymphInfiltrate)
+genes.annot <- read.csv("G:/Sauvegarde Portable/Databases GE/data van veer/Hu25K_infos.txt", header = T, sep = "\t")
+probes <- eset[,1]
+eset <- eset[,-1]
+
+Time <- infos$followupTime
+status <- c(0,1)[infos$metastases]
+st <- Surv(Time, status)
+
+grp <- factor(infos$metastases)
+
+
+
+##############################################################################
+	# ACPs initiales
+if(any(is.na(eset))) eset <- impute.knn(as.matrix(eset))$data
+eset <- as.data.frame(eset)
+acp1 <- prcomp(scale(eset))			# genes = obs ; exp = variables
+acp2 <- prcomp(scale(t(eset)))			# exp = obs ; genes = variables
+
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")
+
+par(mfrow=c(2,2))
+	plot(acp1, main = "Genes")
+	plot(acp2, main = "Experiments")
+	plot(acp1$x, asp = 1, cex = 0.25, col = "royalblue4", main = "Genes")
+	plot(acp2$x, asp = 1, pch = 19, col = mycol[grp], main = "Experiments")
+	legend("topright", legend = levels(grp), pch = 19, col = mycol[1:nlevels(grp)], bty = "n")
+par(op)
+
+d <- bkde2D(scale(acp1$x[,1:2]), bandwidth = 0.5)
+image(d$x1, d$x2, d$fhat, col = colorpanel(100, "navy", "grey80", "yellow"))
+contour(d$x1, d$x2, d$fhat, col = "red", add = T)
+persp(d$x1, d$x2, d$fhat, col = "cyan", border = NA, shade = T, theta = 15, phi = 45)
+
+# pairs(acp1$x[,1:5], asp = 1, cex = 0.25, col = palette[grp], main = "Genes")
+
+	# Choix
+X <- as.data.frame(acp1$x[,2:3])
+X <- scale(X)
+X <- as.data.frame(X)
+
+# mtest <- Mclust(X, G = 2, method = "V")
+par(mfrow = c(2, 5))
+n.select <- c()
+for(a in c(0.1, 0.5, seq(1, 12))){
+	alpha = 10^(-a)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	D <- apply(X^2, 1, sum)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	# plot(X, cex = 0.2, pch = 19, col = ifelse(D>=Q, "royalblue4", "grey"), asp = 1)
+	# points(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)
+	inform <- which(D>=Q)
+	myTab <- table(isSpecific[inform])
+	found <- myTab[names(myTab) == "yes"]/length(inform)
+	myTab <- table(isSpecific[-inform])
+	lost <- myTab[names(myTab) == "yes"]/length(which(isSpecific == "yes"))
+	if(length(lost) == 0) lost = 0
+	n.select <- rbind(n.select, c(alpha = a, nSelect = length(inform), specific = found, lost = lost))
+	# title(main = paste("informative probes", length(inform), "of", nrow(eset), "\nalpha =", alpha, ";", "found =", round(found, 3), ";", "lost =", round(lost, 3)))
+	}
+# barplot(n.select[,2], names = seq(2, 10), col = grey(seq(0.2, 0.8, len = 10)), xlab = "alpha", ylab = "Number of selected probes", beside = T)
+par(op)
+
+n.select <- cbind.data.frame(n.select, perf = n.select[,3]*(1-n.select[,4]))
+n.select
+plot(log10(n.select$alpha), n.select$perf, ylim = range(0, 1), xlab = "-Log10(alpha)", ylab = "Performance", pch = 19, cex = 1.5, col = "dodgerblue3")
+points(log10(n.select$alpha), n.select$specific.yes, pch = 19, cex = 1, col = "grey30")
+points(log10(n.select$alpha), n.select$lost, pch = 19, cex = 1, col = "grey60")
+lines(log10(n.select$alpha), n.select$perf, lwd = 3, col = "dodgerblue3")
+
+# pairs(acp1$x[Index,1:5], cex = 0.25, col = ifelse(D>=Q, "royalblue4", "grey"), pch = 19)
+
+
+	# Filtre et ACPs finales
+a = 7
+alpha = 10^(-a)
+Qmax = 1 - alpha
+Q <- qchisq(p = Qmax, df = ncol(X)-1)
+D <- apply(X^2, 1, sum)
+inform <- which(D>=Q)
+
+sub1 <- eset[inform,]
+acp3 <- prcomp(sub1)			# genes = obs ; exp = variables
+acp4 <- prcomp(t(sub1))			# exp = obs ; genes = variables
+
+par(mfrow=c(2,2))
+	PC3 <- acp2$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(acp2$x, asp = 1, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (all probes)")
+
+	plot(acp3$x[,1:2], cex = 0.2, col = "royalblue4", main = "", asp = 1)
+	title(main = paste("Number of informative probes\n", length(inform), "of", nrow(eset), "(alpha =", alpha, ")"))
+
+	plot.new()
+	legend("center", legend = levels(grp), col= mycol[1:nlevels(grp)], pch = 19, cex = 1.5, bty = "n" )
+
+	PC3 <- acp4$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(acp4$x, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (informative probes)", asp = 1)
+par(op)
+
+
+# graph3D.8(acp4, bold = T, class1 = grp)
+
+heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(100), breaks = seq(-3, 3, len = 101),
+		key = TRUE, trace = "none", density = "none",
+		labRow = grp, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = mycol[grp])
+
+
+# Determination des vraies sondes modifiées
+
+krusk <- data.frame(med1=rep(0,nrow(eset)), med2 = 0, med3 = 0, p.value = NA, adj.p = NA)
+rownames(krusk)<-rownames(eset)
+
+krusk$med1<-apply(eset[,grp == "G1"], 1, median)
+krusk$med2<-apply(eset[,grp == "G2"], 1, median)
+krusk$med3<-apply(eset[,grp == "G3"], 1, median)
+
+for (k in 1:nrow(eset))
+		{tmp <- as.numeric(eset[k,]); krusk$p.value[k] <- kruskal.test(tmp, grp)$p.value}
+
+krusk$adj.p <- p.adjust(krusk$p.value, method = "BH")
+signif <- which(krusk$adj.p <= 0.05)
+non.signif <- which(krusk$adj.p > 0.05)
+Krusk <- ifelse(krusk$adj.p <= 0.05, "Signif", "NonSignif")
+
+Res <- c()
+for (i in 1:4){			# valeurs nulles au-delà de 3
+	for(j in (i+1):5){	# j in (i+1):m
+
+		X <- acp1$x[,i:j]
+		X <- scale(X)
+		X <- as.data.frame(X)
+
+		for(a in seq(1, 10)){
+			INFORM <- rep(NA, nrow(eset))
+			alpha = 10^(-a)
+			Qmax = 1 - alpha
+			Q <- qchisq(p = Qmax, df = ncol(X)-1)
+			D <- apply(X^2, 1, sum)
+			inform <- which(D>=Q)
+		
+			isInform <- ifelse(rownames(eset) %in% names(inform), "Inform", "nonInform")
+
+			found <- which(isInform == "Inform")
+			not.found <- which(isInform == "nonInform")
+	
+			Sensib <- length(intersect(signif, found))/length(signif)		# Tx de vrais retrouvés
+			Specif <- length(intersect(signif, found))/length(found)		# Tx de vrais dans la sélection
+			Bad <- length(intersect(non.signif, found))/length(found)		# Tx de faux dans la sélection
+			Missed <- length(intersect(signif, not.found))/length(signif)	# Tx de vrais absents de la sélection
+			tmp <- c(FirstComp = i, LastComp = j, Alpha = a, N = length(found), Sensib = Sensib, Specif = Specif, Bad = Bad, Missed = Missed)
+			Res <- rbind(Res, tmp)
+			}
+		}
+	}
+Res <- as.data.frame(Res)
+rownames(Res) <- seq(1, nrow(Res))
+Res <- cbind.data.frame(Res, Perf = Res$Sensib * Res$Specif)
+Res[which.max(Res$Perf),]
+
+	# représentation des scores de perf = Sens x spec
+par(cex.main = 1.5, cex.axis = 1.25, cex.lab = 1.25, las = 1, bty = "n")
+plot(c(1, 10), c(0, 1.1), type = "n", xlab = "-Log(alpha)", ylab = "Perf = Sensib. x Specif.",
+	main = "Performance\naccording to PC choice & alpha value")
+for(i in 1:3){
+	l = 1
+	legTxt <- c()
+	for(j in (i+1):5){
+		tmp <- Res[which(Res$FirstComp == i & Res$LastComp == j),]
+		score <- tmp$Sensib * tmp$Specif
+		lines(seq(1, 10), score, col = i+1, lty = l, lwd = 2)
+		legTxt <- c(legTxt, paste("PC", i, " to PC", j, sep = ""))
+		l = l + 1
+		}
+	legend(x = c(1, 4, 7)[i], y = 1.1, legend = legTxt, lwd = 2, col = i + 1, lty = seq(1, j-i+1), cex = 1.25, bty = "n")
+	}
+par(op)
+
+
+	# représentation des Sens en fct de  spec
+par(cex.main = 1.5, cex.axis = 1.25, cex.lab = 1.25, las = 1, bty = "n")
+plot(c(0, 1), c(0, 1), type = "n", xlab = "1 - Specif.", ylab = "Sensib.",
+	main = "Performance\naccording to PC choice & alpha value")
+for(i in 1:3){
+	l = 1
+	legTxt <- c()
+	for(j in (i+1):5){
+		tmp <- Res[which(Res$FirstComp == i & Res$LastComp == j),]
+		lines(1-tmp$Specif, tmp$Sensib, col = i+1, lty = l, lwd = 2)
+		legTxt <- c(legTxt, paste("PC", i, " to PC", j, sep = ""))
+		l = l + 1
+		}
+	legend(x = c(0.1, 0.4, 0.7)[i], y = 0.2, legend = legTxt, lwd = 2, col = i + 1, lty = seq(1, j-i+1), cex = 1.25, bty = "n")
+	}
+par(op)
+
+
+	# Diagnostic sur la valeur de alpha
+X <- as.data.frame(acp1$x[,2:3])	# X <- as.data.frame(acp2$x[,2:3]) # série Daniel gautheret
+X <- scale(X)
+X <- as.data.frame(X)
+D <- rowSums(X^2)
+
+# a.values <- c(0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 5))
+# a.values <- c(0.025, 0.5, 5)
+a.values <- c(1, 16, 16.5)
+
+
+par(mfrow = c(3, 2))
+Score <- S2 <- sum.trace <- c()
+for(a in a.values){
+	alpha = 10^(-a)
+	Pmax = 1 - alpha
+	Q <- qchisq(p = 1 - alpha, df = ncol(X))
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	plot(X, cex = 0.2, pch = 19, col = ifelse(D<=Q, "royalblue4", "grey"))
+	points(y1~x1, col = "red", cex = 0.1, pch = 8, xlim = range(X))
+	inform <- which(D<=Q)
+	title(main = paste(length(inform), "probes"))
+	tmp.n.select <- tmp.S2 <- tmp.sum.trace <- NA
+	if(length(inform)>0){
+		tmp.n.select <- length(inform)
+		sub.inf <- t(eset[inform,])
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5, col = mycol[grp], xlim = range(-120, 120), ylim = range(-120, 120))
+		plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5, xlim = range(-150, 180), ylim = range(-120, 120), col = mycol[grp])
+		# tmp.S2 <- var(as.vector(as.matrix(sub.inf)))
+		# tmp.sum.trace <- sum(diag(var(sub.inf)))
+		}
+	# Score <- rbind(Score, c(a, tmp.n.select, tmp.sum.trace, tmp.S2))
+	# S2 <- c(S2, tmp.S2)
+	# sum.trace <- c(sum.trace, tmp.sum.trace)
+	}
+# plot(sum.trace, a.values)
+par(op)
+
+
+	# calcul de la trace
+
+	# Diagnostic sur la valeur de alpha
+X <- as.data.frame(acp1$x[,2:3])	# X <- as.data.frame(acp2$x[,2:3]) # série Daniel gautheret
+X <- scale(X)
+X <- as.data.frame(X)
+D <- rowSums(X^2)
+
+a.values <- c(1e-5, 1e-4, 1e-3, 1e-2, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 21, by = 4))
+
+useTrace = T
+Score <- c()
+
+for(a in a.values){
+	alpha = 10^(-a)
+	Pmax = 1 - alpha
+	Q <- qchisq(p = Pmax, df = ncol(X))
+	inform <- which(D<=Q)
+	lInf <- length(inform)
+
+	tmpScore <- NA
+
+	if(lInf>0 & lInf<nrow(eset)){
+		tmpNselect <- length(inform)
+		subInf <- t(eset[inform,])
+		tmpS2 <- var(as.vector(as.matrix(subInf)))
+		tmpScore <- c(aValues = a, nProbes = tmpNselect, S2 = tmpS2)
+
+			# calculer les variances sur les axes1 et 2 de la nouvelle acp ?
+		if(useTrace){
+			acpTest <- prcomp(subInf)
+			tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))
+			tmpScore <- c(tmpScore, Trace = tmpTrace)
+		}
+
+		Score <- rbind(Score, tmpScore)
+		}
+	}
+
+rownames(Score) <- seq(1, nrow(Score))
+Score <- as.data.frame(Score)
+Score
+
+# colnames(Score) <- c("aValues", "nProbes", "S2", "Trace")
+
+plot(log10(Score$aValues), Score$Trace, xlab = "Log[-Log(alpha)]", ylab = "Trace of cov matrix")
+
+
+x <- as.numeric(log10(Score$aValues))
+y <- as.numeric(Score$Trace)
+
+if(any(is.na(y) | is.na(x))){
+	na.index <- which(is.na(y) | is.na(x))
+	y <- y[-na.index]
+	x <- x[-na.index]
+	}
+
+# Fonction logistique 5PL
+	Richard <- function(x, Fb, Fmax, b, c, d){
+		y <- Fb + (Fmax - Fb)/(1 + exp(-(x-c)/b))^d
+		return(y)
+		}
+
+# Fonction sce (somme carré résidus) avec pondérations
+	sce.5P <- function(param, xobs, yobs, w) {
+		Fb <- param[1]
+		Fb = 0
+		Fmax <- param[2]
+		b <- param[3]
+		c <- param[4]
+		d <- param[5]
+		ytheo <- Richard(xobs, Fb, Fmax, b, c, d)
+		sq.res <- (yobs - ytheo)^2
+		weights <- 1/sq.res^w
+		return(sum(weights*sq.res))
+		}
+
+# Fonction sce (somme carré résidus) avec pondérations
+	sce.5P.diag <- function(yobs, ytheo, w) {
+		sq.res <- (yobs - ytheo)^2
+		weights <- 1/sq.res^w
+		return(weights)
+		}
+
+# initialisation des parametres
+Fb.ini = 0	# min(y)
+Fmax.ini = max(y)	#*1.05
+c.ini = (max(x) + min(x))/2
+z <- (y)/(Fmax.ini - y)
+if (any(abs(z)==Inf)) z[abs(z)==Inf] <- NA
+b.ini = coef(lm(x~log(z)))[2]
+d.ini = 1
+init <- c(Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)
+
+w = 0.25
+
+# Estimation du modele
+	best<-nlm(f = sce.5P, p = init, xobs = x, yobs = y, w = w)
+
+# Récupération des paramètres
+	best.Fb <- best$estimate[1]
+	best.Fmax <- best$estimate[2]
+	best.b<-best$estimate[3]
+	best.c <- best$estimate[4]
+	best.d <- best$estimate[5]
+
+# Diagnostic de régression
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)
+
+par(cex.main = 1.5, cex.axis = 1.25, cex.lab = 1.25, las = 1)
+	plot(x, y*1e-3, pch = 19, col = "grey75", cex = 1.75, xlab = "Log[-Log(alpha)]", ylab = "Trace of cov matrix (x1e3)")
+	points(x, y*1e-3, col = "red3", cex = 1.75, lwd = 3)
+	lines(I(yfit*1e-3)~newx, lwd = 4, col = "grey25")
+par(op)
+	# abline(h = c(best.Fb, best.Fmax))
+
+	informTable <- c()
+	for(i in seq(0.05, 1, by = 0.05)){
+		yTarg = (best.Fmax + best.Fb)*i
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)
+
+		aTarg <- 10^(xTarg)
+		alpha = 10^(-aTarg)
+		Pmax = 1 - alpha
+		Q <- qchisq(p = Pmax, df = ncol(X))
+
+		inform <- which(D>=Q)
+		nInform <- length(inform)
+		nNonInform <- nrow(eset) - nInform
+		informTable <- rbind(informTable, c(Prop = i, nInf = nInform, nonInf = nNonInform))
+	}
+
+	informTable
+	
+
+	##################################################
+
+PlotSelect <- function(X, Eset, Score, Prop = c(0.05, 0.25, 0.5), Range = c(-100, 0)){
+
+	N <- nrow(eset)
+	x <- as.numeric(log10(Score$aValues))
+	y <- as.numeric(Score$Trace)
+
+	par(mfrow = c(3, 3))
+	for(p in Prop){
+		yTarg = (best.Fmax + best.Fb)*p
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)
+		aTarg <- 10^(xTarg)
+
+		alpha = 10^(-aTarg)
+		Pmax = 1 - alpha
+		Q <- qchisq(p = Pmax, df = ncol(X))
+		theta <- seq(0, 90, by = 1)
+		x1 <- sqrt(Q)*cos(theta)
+		y1 <- sqrt(Q)*sin(theta)
+
+		# trace curve
+		plot(x, y, xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")
+		lines(yfit~newx, lwd = 3, col = "grey25")
+		points(xTarg, yTarg, pch = 19, cex = 1.5, col = "red3")
+		title(main = paste("Prop of trace:", p))
+
+		# probes visualization (selection)
+		plot(X, cex = 0.2, pch = 19, col = ifelse(D<=Q, "royalblue4", "grey"))
+		points(y1~x1, col = "red", cex = 0.1, pch = 8, xlim = range(X))
+		inform <- which(D<=Q)
+		n <- length(inform)
+		title(main = paste(length(inform), " probes (left ", N - n, " probes)", sep = ""))
+		tmp.n.select <- tmp.S2 <- tmp.sum.trace <- NA
+		if(length(inform)>0){
+			subInf <- t(eset[inform,])
+			# subNonInf <- t(eset[-inform,])
+			acpI <- prcomp(subInf)
+			# acpNI <- prcomp(subNonInf)
+			plot(acpI$x[, 1:2], pch = 19, col = "grey25", cex = 1.5, xlim = Range, ylim = Range)
+			title(main = paste("Suppressed:", n, ", kept:", N-n))
+			}
+		}
+par(op)
+}
+
+PlotSelect(X = X, Eset = eset, Score = Score, Prop = c(0.025, 0.25, 0.75), Range = c(-90, 90))
+
+
+	# Plot 3D multiples
+Path = "D:/Stats/Projet ACP/Images2"
+tags <- mycol[grp]
+tags[is.na(tags)] <- "grey"
+rot3D.2(acp4$x[,1:3], rotation = "y.axis", Col = tags, ptSize = 2, n.image = 24, folder = Path)
+
+
+
+	# Extra-plot pour Chemores : tag des %cell.Tum
+		NAs <- which(is.na(infos$TumCellPercent))
+		pcells <- infos$TumCellPercent[-NAs]
+		T.index <- which(infos$Status=="Tumor")
+
+		plot(acp4$x, pch = 19, cex = 1.5, col = mycol[grp], main = "Experiments (informative probes)", asp = 1)
+		points(acp4$x[T.index,1:2], pch = 1, cex = 1, col = ifelse(pcells>=50, "red", "white"))
+	
+	# Extra-plot pour Chemores miR: tag des adk vs. scc
+
+		grp2 <- infos$Disease
+		grp3 <- ifelse(grp == "Normal", "grey70", ifelse(grp2=="AC", "darkred", "seagreen"))
+		plot(acp4$x, pch = 19, cex = 1.5, col = grp3, main = "Experiments (informative probes)", asp = 1)
+		points(acp4$x[,1:2], pch = 19, cex = 0.5, col = c("black", "white")[grp2])
+
+		heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(ncol(sub1)), key = TRUE, trace = "none", density = "none",
+			labRow = grp, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = grp3)
+
+		graph3D.8(acp4, bold = T, class1 = grp3, class2 = grp2, size = 1.5)
+		plot.new(); legend("center", legend = levels(grp:grp2), pch = c(19, 19, 17, 17), col = unique(mycol[1:nlevels(grp:grp2)]), cex = 1.5, bty = "n")
+
+	# Extra-plot pour Chemores miR: CEM clustering
+
+		mclust.model <- Mclust(acp4$x[,1:2]); mclust.model$parameters$pro
+		mclust.class <- mclust.model$classification
+		mclust.class <- factor(as.vector(mclust.class))
+
+		heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(ncol(sub1)), key = TRUE, trace = "none", density = "none",
+			labRow = mclust.class, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = mycol[mclust.class])
+
+		grp2 <- as.vector(infos$Disease)
+		grp3 <- ifelse(grp == "Normal", "Normal", grp2)
+		table(mclust.class, grp3)
+
+
+	# Extra-plots pour Jacobson
+		clust <- hclust(dist(acp4$x), "ward")
+		cut <- cutree(clust, k = 4)
+		cut.class <- factor(cut)
+
+		P <- c()
+		for(i in 7:ncol(infos)){
+			{
+			if(is.factor(infos[,i]) & nlevels(infos[,i])>1) p <- chisq.test(cut.class, infos[,i])$p.value	
+			else p <- kruskal.test(infos[,i]~cut.class)$p.value
+			}
+			P <- rbind(P, c(names(infos)[i], class(infos[,i]), p))
+			}
+	
+		P <- as.data.frame(P)
+		P
+	
+		st <- st.surv
+		cox.mod <- coxph(st ~ cut.class)
+		Ltest <- summary(cox.mod)$logtest[3]
+		# p2 <- summary(cox.mod)$coefficients[1, 5]
+		# p3 <- summary(cox.mod)$coefficients[2, 5]
+
+		kp <- survfit(st ~ cut.class)
+		plot(kp, lwd = 4, col = mycol[1:nlevels(cut.class)])
+		abline(h = 0.5, lty = 2, col = "red")
+		legend("bottomleft", legend = paste("grp", levels(cut.class)), lwd = 3, col = mycol[1:nlevels(cut.class)], cex = 1.25, bty = "n")
+		legend("topright", legend = paste("log.ratio.test: p =", round(Ltest, 4)), cex = 1.25, bty = "n")
+		# text(x = c(12, 8), y = c(0.35, 0.22), labels = paste("p = ", c(round(p2, 4), round(p3, 4))), col = mycol[2:3], cex = 1.25, font = 2)
+	
+
+
+	# Extra-plots pour Van Veer
+		clust <- hclust(dist(acp4$x), "ward")
+		cut <- cutree(clust, k = 3)
+		cut.class <- factor(cut)
+
+		P <- c()
+		for(i in 2:ncol(infos)){
+			{
+			if(is.factor(infos[,i]) & nlevels(infos[,i])>1) p <- chisq.test(cut.class, infos[,i])$p.value	
+			else p <- kruskal.test(infos[,i]~cut.class)$p.value
+			}
+			P <- rbind(P, c(names(infos)[i], class(infos[,i]), p))
+			}
+	
+		P <- as.data.frame(P)
+		P
+	
+		par(mfrow = c(2, 2))
+		plot(infos$ERp~cut.class, col = grey(seq(0.8, 0.1, len = nlevels(cut.class))))
+		plot(infos$PRp~cut.class, col = grey(seq(0.8, 0.1, len = nlevels(cut.class))))
+		plot(infos$grade~cut.class, col = grey(seq(0.8, 0.1, len = nlevels(cut.class))))
+		plot(infos$metastases~cut.class, col = grey(seq(0.8, 0.1, len = nlevels(cut.class))))
+		par(op)
+
+		cox.mod <- coxph(st~cut.class)
+		Ltest <- summary(cox.mod)$logtest[3]
+		p2 <- summary(cox.mod)$coefficients[1, 5]
+		p3 <- summary(cox.mod)$coefficients[2, 5]
+
+		kp <- survfit(st~cut.class)
+		plot(kp, lwd = 4, col = mycol[1:nlevels(cut.class)])
+		abline(h = 0.5, lty = 2, col = "red")
+		legend("bottomleft", legend = paste("grp", levels(cut.class)), lwd = 3, col = mycol[1:nlevels(cut.class)], cex = 1.25, bty = "n")
+		legend("topright", legend = paste("log.ratio.test: p =", round(Ltest, 4)), cex = 1.25, bty = "n")
+		text(x = c(12, 8), y = c(0.35, 0.22), labels = paste("p = ", c(round(p2, 4), round(p3, 4))), col = mycol[2:3], cex = 1.25, font = 2)
+	
+		heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(ncol(sub1)), key = TRUE, trace = "none", density = "none",
+					labRow = cut.class, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = mycol[cut.class])
+
+		graph3D.8(acp4, bold = T, class1 = cut.class)
+
+
+
+		library(seqinr)
+		# acc_num à rehercher
+		acc = "AA868688"
+		prot = "myprot"
+		search <- where.is.this.acc(acc, stopAtFirst = TRUE)
+		choosebank(search)
+		id <- paste("AC=", acc, sep = "")
+		Seq <- getSequence(myquery <- query(prot, id)$req, as.string = T)[[1]]
+		Name <- getName(myquery)

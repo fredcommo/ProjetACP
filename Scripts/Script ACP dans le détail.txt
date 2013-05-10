@@ -1,0 +1,91 @@
+library(MASS)
+library(ade4)
+source("E:\\Stats\\Doc R\\Scripts R\\Biplot.R")
+
+op <- par(no.readonly = T)
+
+	# construction de 2 vecteurs gaussiens
+w <- mvrnorm(n = 100, mu = c(0, 0), Sig = matrix(c(1, 0.75, 0.75,1), 2, 2))
+w <- data.frame(w)
+names(w) <- c("x", "y")
+
+
+# Representer la droite de regression de y/x et son principe :
+plot(w, las = 1)
+points(mean(w$x), mean(w$y), pch = 20, cex = 2)
+abline(lm(w$y ~ w$x))
+segments(w$x, w$y, w$x, predict(lm(w$y ~ w$x)))
+
+# Representer la droite de regression de x/y et son principe :
+plot(w, las = 1)
+points(mean(w$x), mean(w$y), pch = 20, cex = 2)
+a0 <- coefficients(lm(w$x ~ w$y))
+abline(-a0[1]/a0[2], 1/a0[2])
+segments(w$x, w$y, predict(lm(w$x ~ w$y)), w$y)
+
+# Representer l'axe principal et son principe :
+plot(w, asp = 1)
+points(mean(w$x), mean(w$y), pch = 20, cex = 2)
+cov <- var(w)
+u1 <- eigen(cov, sym = T)$vectors[, 1]
+b1 <- u1[2]/u1[1]
+a1 <- mean(w$y) - b1 * mean(w$x)
+abline(c(a1, b1))
+scal <- (w$x - mean(w$x)) * u1[1] + (w$y - mean(w$y)) * u1[2]
+segments(w$x, w$y, mean(w$x) + scal * u1[1], mean(w$y) + scal * u1[2])
+
+# ajouter l'axe secondaire
+# Representer l'axe principal et son principe :
+par(mfrow= c(1,2), cex.main = 1.25, cex.axis = 1.25, cex.lab = 1.25)
+plot(w, asp = 1, pch = 19, cex = 1.25, col = "dodgerblue2")
+points(mean(w$x), mean(w$y), pch = 20, cex = 2)
+abline(c(a1, b1))
+u2 <- eigen(cov, sym = T)$vectors[, 2]
+b2 <- u2[2]/u2[1]
+a2 <- mean(w$y) - b2 * mean(w$x)
+abline(c(a2, b2))
+arrows(x0 = mean(w$x), y0 = mean(w$y), x1 = -cos(pi*b1), y1 = a1-b1*cos(pi*b1), len = 0.1, angle = 20, lwd = 4, col = "red3")
+arrows(x0 = mean(w$x), y0 = a2+b2*mean(w$x), x1 = cos(pi*b2), y1 = a2+b2*cos(pi*b2), len = 0.1, angle = 20, lwd = 4, col = "red3")
+title(main = "Base d'origine")
+acp <- prcomp(w)
+plot(acp$x, asp = 1, pch = 19, cex = 1.25, col = "dodgerblue2")
+abline(h = 0, v = 0)
+arrows(x0 = 0, y0 = 0, x1 = 1, len = 0.1, angle = 20, lwd = 4, col = "red3")
+arrows(x0 = 0, y0 = 0, y1 = 1, len = 0.1, angle = 20, lwd = 4, col = "red3")
+title(main = "Nouvelle base")
+par(op)
+
+# On a represente l'axe principal dans la base canonique.
+# Representer la base canonique dans la base des axes principaux :
+pca1 <- dudi.pca(w, scal = FALSE, scann = FALSE, nf = 2)
+plot(pca1$li, asp = 1, las = 1)
+abline(h = 0)
+abline(v = 0)
+s.arrow(pca1$c1, add.p = TRUE)
+
+
+# ACP avec 2 groupes
+	# construction de 2 vecteurs gaussiens
+w1 <- mvrnorm(n = 100, mu = c(-2, -2), Sig = matrix(c(1, 0.5, 0.5, 1), 2, 2))
+w2 <- mvrnorm(n = 100, mu = c(2, 2), Sig = matrix(c(1, 0, 0, 1), 2, 2))
+w <- rbind.data.frame(w1, w2)
+names(w) <- c("x", "y")
+grp <- as.factor(rep(c("A", "B"), each = 100))
+acp <- prcomp(scale(w))
+plot(acp$x, asp = 1, pch = 19, cex = 1.25, col = c("dodgerblue2", "red4")[grp])
+biplot(acp)
+
+x <- c(rnorm(n = 100, mean = -4, sd = 0.8), rnorm(n = 100, mean = 5, sd = 0.8))
+y <- rnorm(n = 200, mean = 0, sd = 0.2)
+z <- c(rnorm(n = 100, mean = 5, sd = 0.5), rnorm(n = 100, mean = -3, sd = 0.25))
+w <- cbind.data.frame(x = x, y = y, z = z)
+
+grp <- as.factor(rep(c("A", "B"), each = 100))
+acp <- prcomp(scale(w))
+# plot(acp$x, asp = 1, pch = 19, cex = 1.25, col = c("dodgerblue2", "red4")[grp])
+Biplot(acp, lwd = 4, ptag = grp, asp = 1)
+text(acp$rotation[,1]*2, acp$rotation[,2]*2, labels = colnames(w), cex = 1.5, font = 4, col = "darkred")
+
+acp2 <- prcomp(t(w))
+Biplot(acp2, asp = 1, ptag = colnames(w))
+

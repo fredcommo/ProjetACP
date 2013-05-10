@@ -1,0 +1,151 @@
+# Recherche de genes informatifs par ACP
+# A partir de la matrice virtuelle initiale
+library(MASS)
+library(KernSmooth)
+library(mvtnorm)
+library(lattice)
+library(limma)
+library(multtest)
+library(gplots)
+library(mclust)
+op <- par(no.readonly = TRUE)
+source("D:\\Stats\\Doc R\\Scripts R\\graph3D.6.R")
+source("D:\\Stats\\Doc R\\Scripts R\\rb.colors.R")
+source("D:\\Stats\\Doc R\\Scripts R\\plot.express.R")
+
+n = 44000
+m = 100
+size.up.all = n*0.03
+size.Change1 = n*0.006
+size.low.all = n*0.06
+size.Change2 = n*0.003
+total = size.up.all + size.Change1 + size.low.all + size.Change2
+
+eset<-matrix(0, n, m)
+colnames(eset) <- paste("Exp", seq(1:m), sep = "")
+rownames(eset) <- paste("gene", seq(1:n), sep = "")
+
+index.grp <- sample(1:m)						# génère les index de groupe
+
+size1 = ceiling(1/6*m)
+size2 = ceiling(1/3*m)
+size3 = m - (size1 + size2)
+
+FC <- seq(2, 10, by = 0.1)						# Foldchange (min, max)
+bg = 2.5								# background toutes sondes
+bg.c = 1								# background sondes modifiées
+sdv = 0
+
+index.G1 <- index.grp[1:size1]					# m1 = 1/6
+index.G2 <- index.grp[(size1+1):(size1+size2)]			# m2 = 1/3
+index.G3 <- index.grp[(size1+size2+1):m]				# m3 = reste
+
+grp <- rep("G", m)
+grp[index.G1] <- "G1"
+grp[index.G2] <- "G2"
+grp[index.G3] <- "G3"
+grp <- as.factor(grp)
+
+# valeurs de base pour toutes les sondes : voir ‘/Lien entre sd et M loi gamma’
+G <- function(x, a, b){x^(a-1)*(b^a*exp(-b*x)/gamma(x))}
+a = 6
+b = 1
+
+G <- function(x){abs(rnorm(1, 1, abs(x)))}
+
+# G <- function(x, t) {exp(-abs(x))*abs(x)^(t-1)/gamma(t)*abs(x)}
+# t = 200
+
+values <- seq(-1, 1, by = 0.001)
+S <- c()
+vals <- c()
+for (i in 1:n){
+	val <- sample(values, 1) + 1e-3
+	s <- abs(rnorm(1, 1, (1.01-abs(val))/2))
+	# s <- G(val, t)
+	eset[i,] <- rnorm(m, val, s) + rnorm(m, sdv, bg.c)
+	S <- c(S, s)
+	vals <- c(vals, val)
+	}
+
+# index 400 sondes modifiées : choix aléatoire.
+index.probes <- sample(1:n, total)
+start = 1 ; end = size.up.all
+up.all <- index.probes[start:end]				# sondes up chez tous
+
+start = end + 1 ; end = start + size.low.all - 1
+low.all <- index.probes[start:end]				# sondes low chez tous
+
+start = end + 1 ; end=start + size.Change1 - 1
+G1 <- index.probes[start:end]					# sondes modif dans grp1
+
+start = end + 1 ; end = start + size.Change2 - 1
+G2 <- index.probes[start:end]					# sondes modif dans grp2
+
+
+# sondes communes	Up/Low	Foldchange : ~ +4/-4
+S <- c()
+vals <- c()
+for (i in up.all){
+	fc <- sample(FC, 1)
+	s <- abs(rnorm(1, 1, 1/abs(FC)))
+	# s <- G(fc, t)
+	eset[i,] <- rnorm(m, fc, s) + rnorm(m, sdv, bg.c*2)
+	S <- c(S, s)
+	vals <- c(vals, fc)
+	}
+
+S <- c()
+vals <- c()
+for (i in low.all){
+	fc <- sample(FC, 1)
+	s <- abs(rnorm(1, 1, 1/abs(FC)))
+	# s <- G(fc, t)
+	eset[i,] <- rnorm(m, -fc, s) + rnorm(m, sdv, bg.c*2)
+	S <- c(S, s)
+	vals <- c(vals, -fc)
+	}
+
+# sondes Up dans le groupe1 uniquement	Foldchange ~3.8, range (1.6 à 6)
+up.G1 <- G1[1:ceiling(length(G1)/2)]
+low.G1 <- G1[(ceiling(length(G1)/2)+1):length(G1)]
+
+for (i in up.G1){
+	fc <- sample(FC, 1)
+	s <- abs(rnorm(1, 1, 1/abs(FC)))
+	# s <- G(fc, t)
+	eset[i,index.G1] <- rnorm(length(index.G1), fc, s) + rnorm(length(index.G1), sdv, bg.c*2)
+	}
+for (i in low.G1){
+	fc <- sample(FC, 1)
+	s <- abs(rnorm(1, 1, 1/abs(FC)))
+	# s <- G(fc, t)
+	eset[i,index.G1] <- rnorm(length(index.G1), -fc, s) + rnorm(length(index.G1), sdv, bg.c*2)
+	}
+
+# sondes Low dans le groupe2 uniquement	Foldchange ~ -3.8, range (-2 à -18)
+up.G2 <- G2[1:ceiling(length(G2)/2)]
+low.G2 <- G2[(ceiling(length(G2)/2)+1):length(G2)]
+
+for (i in up.G2){
+	fc <- sample(FC, 1)
+	s <- abs(rnorm(1, 1, 1/abs(FC)))
+	# s <- G(fc, t)
+	eset[i,index.G2] <- rnorm(length(index.G2), fc, 1) + rnorm(length(index.G2),sdv,bg.c*2)
+	}
+
+for (i in low.G2){
+	fc <- sample(FC, 1)
+	s <- abs(rnorm(1, 1, 1/abs(FC)))
+	# s <- G(fc, t)
+	eset[i,index.G2] <- rnorm(length(index.G2), - fc, s) + rnorm(length(index.G2), sdv, bg.c*2)
+	}
+
+# true differences = defAs
+defAs <- rep("Null", nrow(eset))
+defAs[up.all] <- "up.all"
+defAs[low.all] <- "low.all"
+defAs[up.G1] <- "up.G1"
+defAs[low.G1] <- "low.G1"
+defAs[up.G2] <- "up.G2"
+defAs[low.G2] <- "low.G2"

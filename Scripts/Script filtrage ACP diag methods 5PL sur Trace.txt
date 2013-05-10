@@ -1,0 +1,127 @@
+
+	# Diagnostic sur la valeur de alpha
+X <- as.data.frame(acp1$x[,1:2])
+X <- scale(X)
+X <- as.data.frame(X)
+D <- X[,1]^2
+a.values <- c(0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 5))
+
+par(mfrow = c(3, 4))
+n.select <- S2 <- sum.trace <- c()
+for(a in a.values){
+	alpha = 10^(-a)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = 1)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	# plot(X, cex = 0.2, pch = 19, col = ifelse(D>=Q, "royalblue4", "grey"), asp = 1)
+	# points(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)
+	inform <- which(D<Q)
+	tmp.n.select <- tmp.S2 <- tmp.sum.trace <- NA
+	if(length(inform)>0){
+		sub.inf <- t(eset[inform,])
+		plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 0.75, col = mycol[resp])
+		tmp.n.select <- length(inform)
+		tmp.S2 <- var(as.vector(as.matrix(sub.inf)))
+		tmp.sum.trace <- sum(diag(var(sub.inf)))
+		}
+	n.select <- rbind(n.select, c(a, tmp.n.select))
+	S2 <- c(S2, tmp.S2)
+	sum.trace <- c(sum.trace, tmp.sum.trace)
+	}
+plot(S2, plot(sum.trace))
+par(op)
+
+x <- as.numeric(log(a.values))
+y <- as.numeric(sum.trace)
+plot(x, y)
+
+if(any(is.na(y) | is.na(x))){
+	na.index <- which(is.na(y) | is.na(x))
+	y <- y[-na.index]
+	x <- x[-na.index]
+	}
+
+# Fonction logistique 5PL
+	Richard <- function(x, Fb, Fmax, b, c, d){
+		y <- Fb + (Fmax - Fb)/(1 + exp(-(x-c)/b))^d
+		return(y)
+		}
+
+# Fonction sce (somme carré résidus) avec pondérations
+	sce.5P <- function(param, xobs, yobs, w) {
+		Fb <- param[1]
+		Fmax <- param[2]
+		b <- param[3]
+		c <- param[4]
+		d <- param[5]
+		ytheo <- Richard(xobs, Fb, Fmax, b, c, d)
+		sq.res <- (yobs - ytheo)^2
+		weights <- 1/sq.res^w
+		return(sum(weights*sq.res))
+		}
+
+# Fonction sce (somme carré résidus) avec pondérations
+	sce.5P.diag <- function(yobs, ytheo, w) {
+		sq.res <- (yobs - ytheo)^2
+		weights <- 1/sq.res^w
+		return(weights)
+		}
+
+# initialisation des parametres
+Fb.ini = min(y)
+Fmax.ini = max(y)	#*1.05
+c.ini = (max(x) + min(x))/2
+z <- (y)/(Fmax.ini - y)
+if (any(abs(z)==Inf)) z[abs(z)==Inf] <- NA
+b.ini = coef(lm(x~log(z)))[2]
+d.ini = 1
+init <- c(Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)
+w = 0.25
+
+# Estimation du modele
+	best<-nlm(f = sce.5P, p = init, xobs = x, yobs = y, w = w)
+
+# Récupération des paramètres
+	best.Fb <- best$estimate[1]
+	best.Fmax <- best$estimate[2]
+	best.b<-best$estimate[3]
+	best.c <- best$estimate[4]
+	best.d <- best$estimate[5]
+
+# Diagnostic de régression
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)
+
+	plot(x, y)
+	lines(yfit~newx)
+	abline(h = c(best.Fb, best.Fmax))
+	Y95 = best.Fmax * 0.99
+	X95 = best.c - best.b*log(((best.Fmax - best.Fb)/(Y95 - best.Fb))^(1/best.d) - 1)
+
+	a95 <- exp(X95)
+
+	alpha = 10^(-a95)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = 1)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	# plot(X, cex = 0.2, pch = 19, col = ifelse(D>=Q, "royalblue4", "grey"), asp = 1)
+	# points(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)
+	inform <- which(D>=Q)
+
+	sub1 <- eset[inform,]
+	# acp2 <- prcomp(values)
+	# acp3 <- prcomp(sub1)			# genes = obs ; exp = variables
+	acp4 <- prcomp(t(sub1))			# exp = obs ; genes = variables
+
+	plot(acp4$x[, 1:2], pch = 19, cex = 1, col = mycol[resp])
+	inform

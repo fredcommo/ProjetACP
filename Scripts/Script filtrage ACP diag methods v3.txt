@@ -1,0 +1,178 @@
+source("D:\\Stats\\Doc R\\Scripts R\\Richard.w5PL.R")
+
+# Non inform diag
+
+	# Représentaion des echant. sur les sondes non info
+X <- as.data.frame(acp1$x[,2:3])
+X <- scale(X)
+X <- as.data.frame(X)
+D <- apply(X^2, 1, sum)
+a.values <- c(0.1, 0.25, 0.5, seq(1, 6))
+
+par(mfrow = c(3, 3))
+for(a in a.values){
+	alpha = 10^(-a)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	# theta <- seq(0, 90, by = 1)
+	# x1 <- sqrt(Q)*cos(theta)
+	# y1 <- sqrt(Q)*sin(theta)
+
+	non.inform <- which(D<Q)
+	sub.ninf <- eset[non.inform,]
+	n.acp <- prcomp(t(sub.ninf))
+	plot(n.acp$x[,1:2], pch = 19, cex = 1, col = mycol[grp], main = "", xlim = range(-10, 10), ylim = range(-15, 15), asp = 1)
+
+	n.select <- length(non.inform)
+	S2 <- var(as.vector(as.matrix(sub.ninf)))
+	sum.trace <- sum(diag(var(sub.ninf)))
+	title(main = paste("a =", signif(alpha, 2), ", n = ", n.select, "\nS2 =", signif(S2, 2), ", trace = ", signif(sum.trace, 2)))
+	}
+
+par(op)
+
+	# Diagnostic sur la valeur de alpha, sondes inform
+X <- as.data.frame(acp1$x[,2:3])
+X <- scale(X)
+X <- as.data.frame(X)
+D <- apply(X^2, 1, sum)
+a.values <- c(1e-1, 0.25, 0.5, seq(1, 20, by = 2))
+
+n.select <- S2 <- sum.trace <- c()
+for(a in a.values){
+	alpha = 10^(-a)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	# plot(X, cex = 0.2, pch = 19, col = ifelse(D>=Q, "royalblue4", "grey"), asp = 1)
+	# points(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)
+	inform <- which(D>=Q)
+	sub.inf <- eset[inform,]
+	n.select <- rbind(n.select, c(a, length(inform)))
+	S2 <- c(S2, var(as.vector(as.matrix(sub.inf))))
+	sum.trace <- c(sum.trace, sum(diag(var(sub.inf))))
+	}
+
+Target = 0.05
+model5P <- Richard.w5PL(a.values, sum.trace,  w = 0, Target = Target, Plot = T, xlab = "alpha", ylab = "Trace")
+segments(x0 = model5P$Xtarget, y0 = 0, y1 = model5P$Ytarget)
+points(x = model5P$Xtarget, y = model5P$Ytarget, pch = 19, cex = 1.25, col = "red")
+best.alpha = 10^(-model5P$Xtarget)
+best.alpha
+text(x = model5P$Xtarget, y = Target, labels = paste("best alpha value =", signif(best.alpha, 3)))
+
+targets <- c()
+for(T in seq(0, 1, by = 0.05)) {
+	model5P <- Richard.w5PL(a.values, sum.trace, w = 0, Target = T, Plot = F)#, Xlab = "-log10(alpha)", Ylab = "Trace")
+	xt <- model5P$Xtarget
+	yt <- model5P$Ytarget
+	alpha = 10^(-xt)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	nProbes <- length(which(D>=Q))
+	targets <- rbind.data.frame(targets, cbind.data.frame(Target = T, Trace = yt, Alpha = 10^(-xt), nProbes = nProbes))
+	points(xt, yt, pch = 19, cex = 1.25, col = "red3")
+	}
+targets
+
+
+	# Représentation des acps en fonction de 'target'
+
+par(mfrow = c(2, 4))
+
+	# PCA initiale
+	# alpha <- 1
+	# trace <- "min"
+
+	# Qmax = 1 - alpha
+	# Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	# inform <- which(D>=Q)
+	# sub.inf <- eset[inform,]
+	# plot(prcomp(t(sub.inf))$x[,1:2], pch = 19, col = mycol[grp], asp = 1) #xlim = range(-100, 100), ylim = range(-100, 100), 
+	# title(main = paste("Initial PCA", ", n.probes =", length(inform)))
+	# plot.new()
+
+for(Tar in c(0, 0.05, 0.5, 0.95)){
+	alpha <- targets$Alpha[which(targets$Target == as.character(Tar))]
+	trace <- targets$Trace[which(targets$Target == as.character(Tar))]
+
+	model5P <- Richard.w5PL(a.values, sum.trace, w = 0, Target = Tar, Plot = TRUE,
+				xlab = "-log10(alpha)", ylab = "Trace", main = paste("%inform =", Tar, "alpha =", signif(alpha, 3)))
+	xt <- model5P$Xtarget
+	yt <- model5P$Ytarget
+	points(xt, yt, pch = 19, cex = 2, col = "orangered")
+	points(xt, yt, pch = 1, cex = 2, col = "red3")
+
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	inform <- which(D<=Q)
+	sub.inf <- eset[inform,]
+	plot(prcomp(t(sub.inf))$x[,1:2], pch = 19, col = mycol[grp], asp = 1) #xlim = range(-100, 100), ylim = range(-100, 100), 
+	title(main = paste("n.probes =", length(inform), ", Trace =", signif(trace, 4)))
+	}
+par(op)
+
+
+
+
+	# Représentation des acps
+
+par(mfrow = c(3,4))
+for(i in c(1:12)){
+	alpha = 10^(-a.values[i])
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	inform <- which(D>=Q)
+	sub.inf <- eset[inform,]
+	plot(prcomp(t(sub.inf))$x[,1:2], pch = 19, col = mycol[grp])
+	title(main = paste("alpha =", signif(alpha, 3), "n.probes =", length(inform), "\nTrace = ", signif(sum.trace[i], 3)))
+	}
+par(op)
+
+	alpha = best.alpha
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	# non.inform <- which(D<Q)
+	# sub.ninf <- eset[-inform,]
+	# n.acp <- prcomp(t(sub.ninf))
+
+	inform <- which(D>=Q)
+	# probes.acp <- prcomp(eset[inform,])
+	inf.acp <- prcomp(t(eset[inform,]))
+	n.inf.acp <- prcomp(t(eset[-inform,]))
+
+par(mfrow=c(2,2))
+	plot(X, cex = 0.2, col = ifelse(D>=Q, "navy", "grey"), main = "", asp = 1)
+	points(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)
+	title(main = paste("Number of informative probes\n", length(inform), "of", nrow(eset), "(alpha =", signif(alpha, 3), ")"))
+
+	plot.new()
+	legend("center", legend = levels(grp), col= mycol[1:nlevels(grp)], pch = 19, cex = 1.5, bty = "n" )
+
+	PC3 <- n.inf.acp$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(n.inf.acp$x, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (non informative probes)", asp = 1)
+
+	PC3 <- inf.acp$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(inf.acp$x, asp = 1, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (informative probes)")
+par(op)
+
+

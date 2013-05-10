@@ -1,0 +1,108 @@
+source("D:\\Stats\\Doc R\\Scripts R\\Richard.5PL.v2.R")
+
+# Non inform diag
+
+	# Représentaion des echant. sur les sondes non info
+X <- as.data.frame(acp1$x[,2:3])
+X <- scale(X)
+X <- as.data.frame(X)
+D <- apply(X^2, 1, sum)
+a.values <- c(0.1, 0.25, 0.5, seq(1, 6))
+
+par(mfrow = c(3, 3))
+for(a in a.values){
+	alpha = 10^(-a)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	# theta <- seq(0, 90, by = 1)
+	# x1 <- sqrt(Q)*cos(theta)
+	# y1 <- sqrt(Q)*sin(theta)
+
+	non.inform <- which(D<Q)
+	sub.ninf <- eset[non.inform,]
+	n.acp <- prcomp(t(sub.ninf))
+	plot(n.acp$x[,1:2], pch = 19, cex = 1, col = mycol[grp], main = "", xlim = range(-100, 150), ylim = range(-150, 100)*0.75, asp = 1)
+
+	n.select <- length(non.inform)
+	S2 <- var(as.vector(as.matrix(sub.ninf)))
+	sum.trace <- sum(diag(var(sub.ninf)))
+	title(main = paste("a =", signif(alpha, 2), ", n = ", n.select, "\nS2 =", signif(S2, 2), ", trace = ", signif(sum.trace, 2)))
+	}
+
+par(op)
+
+	# Diagnostic sur la valeur de alpha
+X <- as.data.frame(acp1$x[,2:3])
+X <- scale(X)
+X <- as.data.frame(X)
+D <- apply(X^2, 1, sum)
+a.values <- c(0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 6))
+
+n.select <- S2 <- sum.trace <- c()
+for(a in a.values){
+	alpha = 10^(-a)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	# plot(X, cex = 0.2, pch = 19, col = ifelse(D>=Q, "royalblue4", "grey"), asp = 1)
+	# points(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)
+	non.inform <- which(D<Q)
+	sub.ninf <- eset[non.inform,]
+	n.select <- rbind(n.select, c(a, length(non.inform)))
+	S2 <- c(S2, var(as.vector(as.matrix(sub.ninf))))
+	sum.trace <- c(sum.trace, sum(diag(var(sub.ninf))))
+	}
+
+model5P <- Richard.5PL.v2(log(a.values), S2, Plot = T, Xlab = "log(alpha)", Ylab = "S²")
+segments(x0 = model5P$Xflex, y0 = 0, x1 = model5P$Xflex, y1 = model5P$Yflex)
+points(x = model5P$Xflex, y = model5P$Yflex, pch = 19, cex = 1.25, col = "red")
+best.alpha = 10^(-(exp(model5P$Xflex)))
+text(x = model5P$Xflex, y = 0.5, labels = paste("best alpha value =", signif(best.alpha, 3)))
+
+	alpha = best.alpha
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	# non.inform <- which(D<Q)
+	# sub.ninf <- eset[-inform,]
+	# n.acp <- prcomp(t(sub.ninf))
+
+	inform <- which(D>=Q)
+	# probes.acp <- prcomp(eset[inform,])
+	inf.acp <- prcomp(t(eset[inform,]))
+	n.inf.acp <- prcomp(t(eset[-inform,]))
+
+par(mfrow=c(2,2))
+	plot(X, cex = 0.2, col = ifelse(D>=Q, "navy", "grey"), main = "", asp = 1)
+	points(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)
+	title(main = paste("Number of informative probes\n", length(inform), "of", nrow(eset), "(alpha =", signif(alpha, 3), ")"))
+
+	plot.new()
+	legend("center", legend = levels(grp), col= mycol[1:nlevels(grp)], pch = 19, cex = 1.5, bty = "n" )
+
+	PC3 <- n.inf.acp$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(n.inf.acp$x, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (non informative probes)", asp = 1)
+
+	PC3 <- inf.acp$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(inf.acp$x, asp = 1, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (informative probes)")
+par(op)
+
+

@@ -1,0 +1,366 @@
+# Recherche de genes informatifs par ACP
+# A partir de la matrice virtuelle initiale
+# Sur sélection des séquences TILL et miscRNA
+
+op <- par(no.readonly = TRUE)
+# memory.limit(size = 4000)
+
+Root = "E"
+library(MASS)
+library(KernSmooth)
+library(mvtnorm)
+library(lattice)
+library(limma)
+library(multtest)
+library(gplots)
+library(mclust)
+library(impute)
+library(survival)
+source(paste(Root, ":\\Stats\\Doc R\\Scripts R\\graph3D.8.R", sep = ""))
+source(paste(Root, ":\\Stats\\Doc R\\Scripts R\\graph3D.9.R", sep = ""))
+source(paste(Root, ":\\Stats\\Doc R\\Scripts R\\graph3D.10.R", sep = ""))
+source(paste(Root, ":\\Stats\\Doc R\\Scripts R\\rb.colors.R", sep = ""))
+source(paste(Root, ":\\Stats\\Doc R\\Scripts R\\plot.express.R", sep = ""))
+source(paste(Root, ":\\Stats\\Doc R\\Scripts R\\heatmap.3.R", sep = ""))
+source(paste(Root, ":\\Stats\\Doc R\\Scripts R\\rot3D.2.R", sep = ""))
+source(paste(Root, ":\\Stats\\Doc R\\Scripts R\\Richard.w5PL.R", sep = ""))
+source(paste(Root, ":\\Stats\\Doc R\\Scripts R\\myPairs.R", sep = ""))
+
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")
+
+##############################################################################
+
+	# Data
+data.address <- paste(Root, ":/Projets individuels/Daniel Gautheret/ScoreBacillusSubtilis-withMarquage_out.txt", sep = "")
+info.address <- paste(Root, ":/Projets individuels/Daniel Gautheret/listRFAM-misc_RNA_out.txt", sep = "")
+
+rawEset <- read.table(data.address, header = T, sep = "\t")
+rnaIds <- rawEset[,c(1, ncol(rawEset))]
+rawEset <- rawEset[,-c(1, ncol(rawEset))]
+
+	# Ajout d'un bruit
+BG <- rnorm(nrow(rawEset)*ncol(rawEset), 0, 1e-10)
+BG <- matrix(BG, nrow(rawEset), ncol(rawEset))
+rawEset <- rawEset + BG
+
+	# lien logit
+pEset <- abs(rawEset)
+if(any(pEset>=1)) pEset[pEset>=1] <- 0.99
+if(any(pEset<=0)) pEset[pEset<=0] <- 0.01
+leset <- log(pEset/(1-pEset))
+
+bNames <- colnames(rawEset)
+
+BNames <- c()
+for(i in 1:length(bNames)){
+	tmp <- unlist(strsplit(bNames[i], "_"))[1]
+	BNames <- c(BNames, tmp)
+	}
+
+
+pairs(rawEset[,c(1, 1051, 1053:1055)])
+myPairs(leset[,1051:1055], smooth.fun = "RLM", cor.method="Pearson")
+
+
+	# Pkoi le leset donne des 'patés' ?
+par(mfrow = c(2, 1))
+plot(density(pEset[,1054], na.rm = T), main = "Prop of similarity", sub = colnames(pEset)[1054])
+plot(density(leset[,1054], na.rm = T), main = "logit of similarity", sub = colnames(leset)[1054])
+par(op)
+
+
+# eset <- eset[, -c(1054:1056)]		# 1054: Bacillus_amyloliquefaciens_FZB42, 1055 = Bacillus_subtilis, 585 = 8164946 TILL
+# eset <- leset[, -c(1051:1055)]	
+
+infos <- read.table(info.address, header = T, sep = "\t")
+
+# rsum <- rowSums(eset)
+# for(i in which(rsum == 0)) eset[i,] <- rnorm(ncol(eset), 0, 1e-10)
+# if(any(rsum == 0)) eset <- eset[-which(rsum == 0), ]
+
+
+# eset <- t(leset[, -c(1051:1055)])
+# Recherche de correlations miscRNA Vs. TILL
+
+till <- which(rnaIds$X == "TILL")
+misc <- which(rnaIds$X == "misc_RNA")
+eset <- leset[c(till, misc), -c(1051:1055)]
+
+# eset <- t(eset)
+grp <- as.character(rnaIds[,2][c(till, misc)])
+grp <- as.factor(grp)
+levels(grp)
+
+##############################################################################
+	# ACPs initiales
+# if(any(is.na(eset))) eset <- impute.knn(as.matrix(eset))$data
+eset <- as.data.frame(eset)
+acp1 <- prcomp(scale(eset))			# rna = obs ; b = variables
+acp2 <- prcomp(scale(t(eset)))			# b = obs ; rna = variables
+
+par(mfrow=c(2,2))
+	plot(acp1, main = "RNA")
+	plot(acp2, main = "B")
+	plot(acp1$x, pch = 19, cex = 1, col = "grey60", main = "RNA")
+	plot(acp2$x, pch = 19, col = "grey60", main = "B")
+par(op)
+
+
+setwd(paste(Root, ":/Projets individuels/Daniel Gautheret", sep = ""))
+
+
+
+	# Visualisation 3D de la sélection
+Information <- rep("No", nrow(eset))
+Information[inform] <- "Yes"
+graph3D.9(acp1, class1 = Information, size = 1)
+
+F <- as.factor(rnaIds$X)
+n <- nlevels(F)
+graph3D.9(acp1, class1 = F, size = 1.25)
+legend("bottomleft", legend = levels(F), pch = 19, col = mycol[1:n])
+table(rnaIds$X, mycol[rnaIds$X])
+
+	# Heatmap sur la sélection
+ncol = 100
+heatmap.3(as.matrix(esetInform), scale = "row", Method = "ward", col = greenred(ncol), breaks = seq(-2, 2, len = ncol + 1), key = TRUE, trace = "none", density = "none",
+	labRow = "", cexRow = 0.5, labCol = "", cexCol = 0.2) # , labRow = grp, RowSideColors = mycol[grp]
+
+# Dendrogramme sur les échantillons à partir de l'ACP
+Clust <- hclust(dist(acpInf$x[,1:2]), "ward")
+clustRes <- cbind.data.frame(org = colnames(eset), Ord = Clust$order)
+clustRes <- clustRes[order(clustRes$Ord),]
+# write.table(clustRes, "HD_ organism_on_filtered_Genes.xls", sep = "\t", row.names = FALSE)
+
+	# Dendrogramme sur les echantillons
+Clust <- hclust(dist(t(esetInform)), "ward")
+plot(Clust, cex = 0.2)		
+idclust <- identify(Clust)	# use a right clic to stop
+
+out <- c()
+for(i in 1:length(idclust)){
+	tmp <- idclust[[i]]
+	out <- rbind(out, cbind(rep(i, length(tmp)), tmp))
+	}
+
+clustRes <- cbind.data.frame(Org = colnames(esetInform)[Clust$order])
+clustRes <- cbind.data.frame(clustRes, Grp = as.vector(out[,1]))
+
+write.table(clustRes, "HD_organism_on_filtered_Genes_D1a3_filtr0.5.xls", sep = "\t", row.names = FALSE)
+
+
+	# Dendrogramme sur les gènes filtrés
+Clust <- hclust(dist(esetInform), "ward")
+plot(Clust, cex = 0.2)
+idclust <- identify(Clust)	# use a right clic to stop
+
+out <- c()
+for(i in 1:length(idclust)){
+	tmp <- idclust[[i]]
+	out <- rbind(out, cbind(rep(i, length(tmp)), tmp))
+	}
+
+clustRes <- cbind.data.frame(rnaIds[inform[Clust$order], ])
+clustRes <- cbind.data.frame(clustRes, Grp = out[,1])
+
+write.table(clustRes, "HD_on_filtered_Genes_D1a3_filtr0.5.xls", sep = "\t", row.names = FALSE)
+
+
+BNames <- as.factor(BNames)
+Cols <- rainbow(nlevels(BNames), start = 0.20, end = 0.15)
+PC3 <- acpInf$x[,3]
+mp = min(PC3)
+Mp = max(PC3)
+pcex = 2*(PC3-mp)/(Mp - mp) + 1
+plot(acpInf$x[, 1:2], pch = 19, cex = pcex, col = Cols, main = paste("PCA on", nInform, "informative probes"))
+
+km <- kmean(acpInf[,1:2], center = 2)
+Class <- as.factor(km$cluster)
+plot(acpInf$x[, 1:2], pch = 19, cex = 0.75, col = mycol[Class], main = paste("PCA on", nInform, "informative probes"))
+
+Clust <- Mclust(acpInf$x[,1:2], G = 2:9)
+Class <- as.factor(Clust$classification)
+table(BNames[-c(1051:1055)], Class)
+
+plot(acpInf$x[, 1:2], pch = 19, cex = 1, col = mycol[Class], main = paste("PCA on", nInform, "informative probes"))
+graph3D.10(acpInf, class1 = Class, col = mycol)
+
+
+setwd(paste(Root, ":/Projets individuels/Daniel Gautheret", sep = ""))
+
+
+# Non inform diag
+
+	# Représentaion des echant. sur les sondes non info
+X <- as.data.frame(acp1$x[,2:3])
+X <- scale(X)
+X <- as.data.frame(X)
+D <- apply(X^2, 1, sum)
+a.values <- c(0.1, 0.25, 0.5, seq(1, 6))
+
+par(mfrow = c(3, 3))
+for(a in a.values){
+	alpha = 10^(-a)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	# theta <- seq(0, 90, by = 1)
+	# x1 <- sqrt(Q)*cos(theta)
+	# y1 <- sqrt(Q)*sin(theta)
+
+	inform <- which(D<=Q)
+	sub <- eset[inform,]
+	n.acp <- prcomp(t(sub))
+	plot(n.acp$x[,1:2], pch = 19, cex = 1, col = mycol[grp], main = "")
+
+	n.select <- ncol(sub)
+	S2 <- var(as.vector(as.matrix(sub)))
+	sum.trace <- sum(diag(var(sub)))
+	title(main = paste("a =", signif(alpha, 2), ", n = ", n.select, "\nS2 =", signif(S2, 2), ", trace = ", signif(sum.trace, 2)))
+	}
+par(op)
+
+
+	# Diagnostic sur la valeur de alpha, sondes inform
+X <- as.data.frame(acp1$x[,2:3])
+X <- scale(X)
+X <- as.data.frame(X)
+D <- apply(X^2, 1, sum)
+a.values <- c(1e-1, 0.25, 0.5, seq(1, 20, by = 2))
+
+n.select <- S2 <- sum.trace <- c()
+for(a in a.values){
+	alpha = 10^(-a)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	plot(X, cex = 0.2, pch = 19, col = ifelse(D>=Q, "royalblue4", "grey"), asp = 1)
+	points(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)
+	inform <- which(D>=Q)
+	sub.inf <- t(eset[inform,])
+	n.select <- rbind(n.select, c(a, length(inform)))
+	S2 <- c(S2, var(as.vector(as.matrix(sub.inf))))
+	sum.trace <- c(sum.trace, sum(diag(var(sub.inf))))
+	}
+
+Target = 0.05
+model5P <- Richard.w5PL(a.values, sum.trace,  w = 0, Target = Target, Plot = T, xlab = "alpha", ylab = "Trace")
+segments(x0 = model5P$Xtarget, y0 = 0, y1 = model5P$Ytarget)
+points(x = model5P$Xtarget, y = model5P$Ytarget, pch = 19, cex = 1.25, col = "red")
+best.alpha = 10^(-model5P$Xtarget)
+best.alpha
+text(x = model5P$Xtarget, y = Target, labels = paste("best alpha value =", signif(best.alpha, 3)))
+
+targets <- c()
+for(T in seq(0, 1, by = 0.05)) {
+	model5P <- Richard.w5PL(a.values, sum.trace, w = 0, Target = T, Plot = F)#, Xlab = "-log10(alpha)", Ylab = "Trace")
+	xt <- model5P$Xtarget
+	yt <- model5P$Ytarget
+	alpha = 10^(-xt)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	nProbes <- length(which(D>=Q))
+	targets <- rbind.data.frame(targets, cbind.data.frame(Target = T, Trace = yt, Alpha = 10^(-xt), nProbes = nProbes))
+	points(xt, yt, pch = 19, cex = 1.25, col = "red3")
+	}
+targets
+
+
+	# Représentation des acps en fonction de 'target'
+
+par(mfrow = c(2, 4))
+
+	# PCA initiale
+	# alpha <- 1
+	# trace <- "min"
+
+	# Qmax = 1 - alpha
+	# Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	# inform <- which(D>=Q)
+	# sub.inf <- eset[inform,]
+	# plot(prcomp(t(sub.inf))$x[,1:2], pch = 19, col = mycol[grp], asp = 1) #xlim = range(-100, 100), ylim = range(-100, 100), 
+	# title(main = paste("Initial PCA", ", n.probes =", length(inform)))
+	# plot.new()
+
+for(Tar in c(0, 0.05, 0.5, 0.95)){
+	alpha <- targets$Alpha[which(targets$Target == as.character(Tar))]
+	trace <- targets$Trace[which(targets$Target == as.character(Tar))]
+
+	model5P <- Richard.w5PL(a.values, sum.trace, w = 0, Target = Tar, Plot = TRUE,
+				xlab = "-log10(alpha)", ylab = "Trace", main = paste("%inform =", Tar, "alpha =", signif(alpha, 3)))
+	xt <- model5P$Xtarget
+	yt <- model5P$Ytarget
+	points(xt, yt, pch = 19, cex = 2, col = "orangered")
+	points(xt, yt, pch = 1, cex = 2, col = "red3")
+
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	inform <- which(D<=Q)
+	sub.inf <- eset[inform,]
+	plot(prcomp(t(sub.inf))$x[,1:2], pch = 19, col = mycol[grp], asp = 1) #xlim = range(-100, 100), ylim = range(-100, 100), 
+	title(main = paste("n.probes =", length(inform), ", Trace =", signif(trace, 4)))
+	}
+par(op)
+
+
+
+
+	# Représentation des acps
+
+par(mfrow = c(3,4))
+for(i in c(1:12)){
+	alpha = 10^(-a.values[i])
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	inform <- which(D>=Q)
+	sub.inf <- eset[inform,]
+	plot(prcomp(t(sub.inf))$x[,1:2], pch = 19, col = mycol[grp])
+	title(main = paste("alpha =", signif(alpha, 3), "n.probes =", length(inform), "\nTrace = ", signif(sum.trace[i], 3)))
+	}
+par(op)
+
+	alpha = 1e-2
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	# non.inform <- which(D<Q)
+	# sub.ninf <- eset[-inform,]
+	# n.acp <- prcomp(t(sub.ninf))
+
+	inform <- which(D>=Q)
+	# probes.acp <- prcomp(eset[inform,])
+	inf.acp <- prcomp(t(eset[inform,]))
+	n.inf.acp <- prcomp(t(eset[-inform,]))
+
+par(mfrow=c(2,2))
+	plot(X, cex = 0.2, col = ifelse(D>=Q, "navy", "grey"), main = "", asp = 1)
+	points(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)
+	title(main = paste("Number of informative probes\n", length(inform), "of", nrow(eset), "(alpha =", signif(alpha, 3), ")"))
+
+	plot.new()
+	legend("center", legend = levels(grp), col= mycol[1:nlevels(grp)], pch = 19, cex = 1.5, bty = "n" )
+
+	PC3 <- n.inf.acp$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(n.inf.acp$x, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (non informative probes)", asp = 1)
+
+	PC3 <- inf.acp$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(inf.acp$x, asp = 1, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (informative probes)")
+par(op)
+

@@ -1,0 +1,13 @@
+            miR_Id    miR_Reverse
+52     hsa-miR-20a           <NA>
+123    hsa-miR-145           <NA>
+126    hsa-miR-375           <NA>
+165     hsa-miR-96           <NA>
+173 hsa-miR-188-5p hsa-miR-188-3p
+223    hsa-miR-205           <NA>
+278     hsa-miR-17           <NA>
+332    hsa-miR-203           <NA>
+505    hsa-miR-20b           <NA>
+540   hsa-miR-1290           <NA>
+620   hsa-miR-1246           <NA>
+702    hsa-miR-630           <NA>

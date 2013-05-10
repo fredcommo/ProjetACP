@@ -1,0 +1,41 @@
+op <- par(no.readonly = T)
+
+X <- c()
+for(i in 1:8) X <- cbind(X, rnorm(100))
+X <- cbind(X, c(rnorm(50, -2, 1), rnorm(50, 2, 1)))
+X <- cbind(X, c(rnorm(50, -4, 1), rnorm(50, 4, 1)))
+colnames(X) <- LETTERS[1:ncol(X)]
+grp <- c(rep("A", 50), rep("B", 50))
+grp <- factor(grp)
+
+acp <- prcomp(X)
+plot(acp$x, col = c(1:2)[grp])
+
+tacp <- prcomp(t(X))
+plot(tacp$x, pch = as.character(colnames(X)), asp = 1)
+Y <- as.data.frame(tacp$x)
+Y <- scale(Y)
+Sdev <- tacp$sdev
+n = 2
+D <- sqrt(rowSums((Y[,1:n]*Sdev[1:n])^2)/sum(Sdev))
+D
+plot(Y, pch = colnames(X), asp = 1)
+
+D <- sqrt((Y[,1]*Sdev[1])^2 + (Y[,2]*Sdev[2])^2)
+order(D, decreasing = T)
+D <- sqrt(Y[,1]^2 + Y[,2]^2)
+order(D, decreasing = T)
+plot(D, type = "h", lwd = 10)
+acp2 <- prcomp(X[,c(9, 10)])
+
+par(mfrow = c(2, 2))
+D <- sqrt(rowSums((as.matrix(Y[,1:n])%*%diag(Sdev[1:n])/sum(Sdev[1:n]))^2))
+order(D, decreasing = T)
+plot(Y, pch = colnames(X), asp = 1)
+plot(D, type = "h", lwd = 10)
+abline( h = qchisq(0.975, n)/sum(Sdev[1:n]), lty = 3, col = "grey")
+plot(acp$x, col = c(1:2)[grp], asp = 1)
+plot(acp2$x, col = c(1:2)[grp], xlim = range(acp$x[,1]), ylim = range(acp$x[,2]), asp = 1)
+par(op)
+
+D <- rowSums(as.matrix(Y[,1:n]^2)%*%diag(Sdev[1:n])/sum(Sdev[1:n]))

@@ -1,0 +1,2173 @@
+Upload the mRNA Expression data set: syn427896#
+ent <- loadEntity('syn427896')#
+eset <- exprs(ent$objects$eset)#
+dim(eset); eset[1:10, 1:10]
+ent <- loadEntity('syn266141')#
+str(ent)
+eset <- exprs(ent$objects$eset)
+str(ent$objects)
+str(ent$objects$eSet_oncomap)
+eset <- exprs(ent$objects$eSet_oncomap)
+dim(eset); eset[1:10, 1:10]
+ent <- loadEntity('syn210931')
+str(ent$objects)
+eset <- exprs(ent$objects$eSet_expr)#
+dim(eset); eset[1:10, 1:10]
+Upload the mRNA Expression data set: syn427896#
+ent <- loadEntity('syn427896')#
+eset <- exprs(ent$objects$eset)#
+dim(eset); eset[1:10, 1:10]#
+#
+# Upload metadata : syn424134#
+metadata <- loadEntity('syn424134')#
+metaDat <- metadata$objects$pData
+dim(metaDat)
+dim(metaDat); head(meataDat)
+dim(metaDat); head(metaDat)
+metaDat$PrimaryHist
+boxplot(eset[,sample(1:ncol(eset), 100)])
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")#
+#
+grp <- factor(rep(1, nrow(metaDat))) # grp <- factor(infos$IHC_status1)#
+grp <- metaDat$PrimaryHist#
+#
+###############################################################################
+	# ACPs initiales#
+if(any(is.na(eset))){#
+	eset <- impute.knn(as.matrix(eset))$data#
+  }#
+eset <- as.data.frame(eset)#
+acp1 <- prcomp(scale(eset))			# genes = obs ; exp = variables#
+acp2 <- prcomp(scale(t(eset)))			# exp = obs ; genes = variables#
+#
+par(mfrow=c(2,2))#
+	plot(acp1, main = "Genes")#
+	plot(acp2, main = "Experiments")#
+	plot(acp1$x, asp = 1, cex = 0.25, col = "royalblue4", main = "Genes")#
+	plot(acp2$x, asp = 1, pch = 19, col = mycol[grp], main = "Experiments")#
+	legend("topright", legend = levels(grp), pch = 19, col = mycol[1:nlevels(grp)], bty = "n")#
+par(op)
+nlevels(grp)
+names(metaDat)
+metaDat$PrimarySite
+grp <- metaDat$PrimarySite
+nlevels(grp)
+if(nlevels(grp)>10){#
+	mycol <- colors()[sample(200:400, nlevels(grp))]#
+}
+mycol
+colors()
+if(nlevels(grp)>10){#
+	mycol <- colors()[sample(c(8:152, 365:657), nlevels(grp))]#
+}
+mycol
+ACPs initiales#
+if(any(is.na(eset))){#
+	eset <- impute.knn(as.matrix(eset))$data#
+  }#
+eset <- as.data.frame(eset)#
+acp1 <- prcomp(scale(eset))			# genes = obs ; exp = variables#
+acp2 <- prcomp(scale(t(eset)))			# exp = obs ; genes = variables#
+#
+par(mfrow=c(2,2))#
+	plot(acp1, main = "Genes")#
+	plot(acp2, main = "Experiments")#
+	plot(acp1$x, asp = 1, cex = 0.25, col = "royalblue4", main = "Genes")#
+	plot(acp2$x, asp = 1, pch = 19, col = mycol[grp], main = "Experiments")#
+	legend("topright", legend = levels(grp), pch = 19, col = mycol[1:nlevels(grp)], bty = "n")#
+par(op)
+par(mfrow=c(2,2))#
+	plot(acp1, main = "Genes")#
+	plot(acp2, main = "Experiments")#
+	plot(acp1$x, asp = 1, cex = 0.25, col = "royalblue4", main = "Genes")#
+	plot(acp2$x, asp = 1, pch = 19, col = mycol[grp], main = "Experiments")#
+	legend("topright", legend = levels(grp), pch = 19, cex = 0.2, col = mycol[1:nlevels(grp)], bty = "n")#
+par(op)
+Diagnostic sur la valeur de alpha#
+X <- as.data.frame(acp1$x[,2:3])	# X <- as.data.frame(acp2$x[,2:3]) # s?rie Daniel gautheret#
+X <- scale(X)#
+X <- as.data.frame(X)#
+D <- rowSums(X^2)#
+#
+# a.values <- c(0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 5))#
+a.values <- c(0.025, 0.5, 5)#
+#
+par(mfrow = c(3, 2))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	# pt.col <- ifelse(D>=Q, "red", "grey")#
+#
+	theta <- seq(0, 90, by = 1)#
+	x1 <- sqrt(Q)*cos(theta)#
+	y1 <- sqrt(Q)*sin(theta)#
+#
+	plot(X, cex = 0.2, pch = 19, col = ifelse(D<=Q, "royalblue4", "grey"))#
+	points(y1~x1, col = "red", cex = 0.1, pch = 8, xlim = range(X))#
+	inform <- which(D<=Q)#
+	title(main = paste(length(inform), "probes"))#
+	tmp.n.select <- tmp.S2 <- tmp.sum.trace <- NA#
+	if(length(inform)>0){#
+		tmp.n.select <- length(inform)#
+		sub.inf <- t(eset[inform,])#
+		plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5, col = mycol[grp], #
+			xlim = range(-50, 50), ylim = range(-50, 50), main = "Samples segregation")#
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5)	#, col = mycol[grp])#
+		# tmp.S2 <- var(as.vector(as.matrix(sub.inf)))#
+		# tmp.sum.trace <- sum(diag(var(sub.inf)))#
+		}#
+	# Score <- rbind(Score, c(a, tmp.n.select, tmp.sum.trace, tmp.S2))#
+	# S2 <- c(S2, tmp.S2)#
+	# sum.trace <- c(sum.trace, tmp.sum.trace)#
+	}#
+# plot(sum.trace, a.values)#
+par(op)
+par(mfrow = c(3, 2))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	# pt.col <- ifelse(D>=Q, "red", "grey")#
+#
+	theta <- seq(0, 90, by = 1)#
+	x1 <- sqrt(Q)*cos(theta)#
+	y1 <- sqrt(Q)*sin(theta)#
+#
+	plot(X, cex = 0.2, pch = 19, col = ifelse(D<=Q, "royalblue4", "grey"))#
+	points(y1~x1, col = "red", cex = 0.1, pch = 8, xlim = range(X))#
+	inform <- which(D<=Q)#
+	title(main = paste(length(inform), "probes"))#
+	tmp.n.select <- tmp.S2 <- tmp.sum.trace <- NA#
+	if(length(inform)>0){#
+		tmp.n.select <- length(inform)#
+		sub.inf <- t(eset[inform,])#
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5, col = mycol[grp], #
+		# 	xlim = range(-50, 50), ylim = range(-50, 50), main = "Samples segregation")#
+		myPCAplot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5, Fact = grp, #
+			xlim = range(-50, 50), ylim = range(-50, 50), main = "Samples segregation")#
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5)	#, col = mycol[grp])#
+		# tmp.S2 <- var(as.vector(as.matrix(sub.inf)))#
+		# tmp.sum.trace <- sum(diag(var(sub.inf)))#
+		}#
+	# Score <- rbind(Score, c(a, tmp.n.select, tmp.sum.trace, tmp.S2))#
+	# S2 <- c(S2, tmp.S2)#
+	# sum.trace <- c(sum.trace, tmp.sum.trace)#
+	}#
+# plot(sum.trace, a.values)#
+par(op)
+par(mfrow = c(3, 2))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	# pt.col <- ifelse(D>=Q, "red", "grey")#
+#
+	theta <- seq(0, 90, by = 1)#
+	x1 <- sqrt(Q)*cos(theta)#
+	y1 <- sqrt(Q)*sin(theta)#
+#
+	plot(X, cex = 0.2, pch = 19, col = ifelse(D<=Q, "royalblue4", "grey"))#
+	points(y1~x1, col = "red", cex = 0.1, pch = 8, xlim = range(X))#
+	inform <- which(D<=Q)#
+	title(main = paste(length(inform), "probes"))#
+	tmp.n.select <- tmp.S2 <- tmp.sum.trace <- NA#
+	if(length(inform)>0){#
+		tmp.n.select <- length(inform)#
+		sub.inf <- t(eset[inform,])#
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5, col = mycol[grp], #
+		# 	xlim = range(-50, 50), ylim = range(-50, 50), main = "Samples segregation")#
+		myPCAplot(prcomp(sub.inf)$x[, 1:3], pch = 19, cex = 1.5, Fact = grp, #
+			xlim = range(-50, 50), ylim = range(-50, 50), main = "Samples segregation")#
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5)	#, col = mycol[grp])#
+		# tmp.S2 <- var(as.vector(as.matrix(sub.inf)))#
+		# tmp.sum.trace <- sum(diag(var(sub.inf)))#
+		}#
+	# Score <- rbind(Score, c(a, tmp.n.select, tmp.sum.trace, tmp.S2))#
+	# S2 <- c(S2, tmp.S2)#
+	# sum.trace <- c(sum.trace, tmp.sum.trace)#
+	}#
+# plot(sum.trace, a.values)#
+par(op)
+par(mfrow = c(3, 2))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	# pt.col <- ifelse(D>=Q, "red", "grey")#
+#
+	theta <- seq(0, 90, by = 1)#
+	x1 <- sqrt(Q)*cos(theta)#
+	y1 <- sqrt(Q)*sin(theta)#
+#
+	plot(X, cex = 0.2, pch = 19, col = ifelse(D<=Q, "royalblue4", "grey"))#
+	points(y1~x1, col = "red", cex = 0.1, pch = 8, xlim = range(X))#
+	inform <- which(D<=Q)#
+	title(main = paste(length(inform), "probes"))#
+	tmp.n.select <- tmp.S2 <- tmp.sum.trace <- NA#
+	if(length(inform)>0){#
+		tmp.n.select <- length(inform)#
+		sub.inf <- t(eset[inform,])#
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5, col = mycol[grp], #
+		# 	xlim = range(-50, 50), ylim = range(-50, 50), main = "Samples segregation")#
+		myPCAplot(prcomp(sub.inf)$x[, 1:3], Fact = grp, #
+			xlim = range(-50, 50), ylim = range(-50, 50), main = "Samples segregation")#
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5)	#, col = mycol[grp])#
+		# tmp.S2 <- var(as.vector(as.matrix(sub.inf)))#
+		# tmp.sum.trace <- sum(diag(var(sub.inf)))#
+		}#
+	# Score <- rbind(Score, c(a, tmp.n.select, tmp.sum.trace, tmp.S2))#
+	# S2 <- c(S2, tmp.S2)#
+	# sum.trace <- c(sum.trace, tmp.sum.trace)#
+	}#
+# plot(sum.trace, a.values)#
+par(op)
+calcul de la trace#
+#
+	# Diagnostic sur la valeur de alpha#
+X <- as.data.frame(acp1$x[,2:3])	# X <- as.data.frame(acp2$x[,2:3]) # s?rie Daniel gautheret#
+X <- scale(X)#
+X <- as.data.frame(X)#
+D <- rowSums(X^2)#
+#
+a.values <- c(1e-5, 1e-4, 1e-3, 1e-2, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 22, by = 3))#
+#
+useTrace = T#
+Score <- c()#
+#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	lInf <- length(inform)#
+#
+	tmpScore <- NA#
+#
+	if(lInf>0 & lInf<nrow(eset)){#
+		tmpNselect <- length(inform)#
+		subInf <- t(eset[inform,])#
+		tmpS2 <- var(as.vector(as.matrix(subInf)))#
+		tmpScore <- c(aValues = a, nProbes = tmpNselect, S2 = tmpS2)#
+#
+			# calculer les variances sur les axes1 et 2 de la nouvelle acp ?#
+		if(useTrace){#
+			acpTest <- prcomp(subInf)#
+			tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+			tmpScore <- c(tmpScore, Trace = tmpTrace)#
+		}#
+#
+		Score <- rbind(Score, tmpScore)#
+		}#
+	}#
+#
+rownames(Score) <- seq(1, nrow(Score))#
+Score <- as.data.frame(Score)#
+Score#
+#
+# colnames(Score) <- c("aValues", "nProbes", "S2", "Trace")#
+#
+plot(log10(Score$aValues), Score$Trace, xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")
+Fonction logistique 5PL#
+	Richard <- function(x, Fb, Fmax, b, c, d){#
+		y <- Fb + (Fmax - Fb)/(1 + exp(-(x-c)/b))^d#
+		return(y)#
+		}#
+#
+# Fonction sce (somme carr? r?sidus) avec pond?rations#
+	sce.5P <- function(param, xobs, yobs, w) {#
+		# Fb <- param[1]#
+		Fb = 0#
+		Fmax <- param[2]#
+		b <- param[3]#
+		c <- param[4]#
+		d <- param[5]#
+		ytheo <- Richard(xobs, Fb, Fmax, b, c, d)#
+		sq.res <- (yobs - ytheo)^2#
+		weights <- 1/sq.res^w#
+		return(sum(weights*sq.res))#
+		}#
+#
+# Fonction sce (somme carr? r?sidus) avec pond?rations#
+	sce.5P.diag <- function(yobs, ytheo, w) {#
+		sq.res <- (yobs - ytheo)^2#
+		weights <- 1/sq.res^w#
+		return(weights)#
+		}#
+x <- as.numeric(log10(Score$aValues))#
+y <- as.numeric(Score$Trace)#
+#
+if(any(is.na(y) | is.na(x))){#
+  na.index <- which(is.na(y) | is.na(x))#
+  y <- y[-na.index]#
+  x <- x[-na.index]#
+}#
+#
+# initialisation des parametres#
+Fb.ini = 0	                                                 # min(y)#
+Fmax.ini = max(y)	                                           #*1.05#
+c.ini = 0                                                    #(max(x) + min(x))/2#
+z <- (y)/(Fmax.ini - y)#
+if (any(abs(z)==Inf)) z[abs(z)==Inf] <- NA#
+b.ini = coef(lm(x ~ log(z)))[2]#
+d.ini = 1#
+init <- c(Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+w = 0#
+#
+# Estimation du modele#
+	best <- nlm(f = sce.5P, p = as.vector(init), xobs = x, yobs = y, w = w)#
+  best#
+#
+# R?cup?ration des param?tres#
+	best.Fb <- best$estimate[1]#
+	best.Fmax <- best$estimate[2]#
+	best.b <- best$estimate[3]#
+	best.c <- best$estimate[4]#
+	best.d <- best$estimate[5]#
+#
+# Diagnostic de r?gression#
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)#
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)#
+  yfitInit <- Richard(x, Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+	plot(x, y, lwd = 2, cex = 1.25, col = "grey25", xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+	lines(yfitInit ~ x, lwd = 3, lty = 3, col = "grey75")#
+	lines(yfit ~ newx, lwd = 3, col = "dodgerblue2")#
+	⁃	# abline(h = c(best.Fb, best.Fmax))
+informTable <- c()#
+	for(i in seq(0.05, 1, by = 0.05)){#
+		yTarg = (best.Fmax + best.Fb)*i#
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+#
+		aTarg <- 10^(xTarg)#
+		alpha = 10^(-aTarg)#
+		Pmax = 1 - alpha#
+		Q <- qchisq(p = Pmax, df = ncol(X))#
+#
+		inform <- which(D>=Q)#
+		nInform <- length(inform)#
+		nNonInform <- nrow(eset) - nInform#
+		informTable <- rbind(informTable, c(Prop = i, Alpha = signif(alpha, 3), nInf = nInform, nonInf = nNonInform))#
+	}#
+#
+	informTable
+yTarg = (best.Fmax + best.Fb)* 0.5#
+	xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+	points(xTarg, yTarg, pch = 19, cex = 1.5, col = "red3")#
+#
+	aTarg <- 10^(xTarg)#
+#
+	alpha = 10^(-aTarg)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	# pt.col <- ifelse(D>=Q, "red", "grey")#
+#
+	# theta <- seq(0, 90, by = 1)#
+	# x1 <- sqrt(Q)*cos(theta)#
+	# y1 <- sqrt(Q)*sin(theta)#
+	# plot(X, cex = 0.2, pch = 19, col = ifelse(D>=Q, "royalblue4", "grey"), asp = 1)#
+	# points(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)#
+	inform <- which(D>=Q)#
+	nInform <- length(inform); cat("Information in", nInform, "\n")#
+	nNonInform <- nrow(eset) - nInform; cat("No information in", nNonInform, "\n")#
+#
+	esetInform <- eset[inform,]#
+	esetNonInform <- eset[-inform,]#
+#
+	acpInf <- prcomp(t(esetInform))			# exp = obs ; genes = variables#
+	acpNonInf <- prcomp(t(esetNonInform))			# exp = obs ; genes = variables#
+#
+	par(mfrow = c(1, 2))#
+	PC3 <- acpNonInf$x[,3]#
+	mp = min(PC3)#
+	Mp = max(PC3)#
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.25#
+	plot(acpNonInf$x[, 1:2], pch = 1, cex = pcex, col = c(2:3)[grp], xlim = range(acpInf$x[,1]), ylim = range(acpInf$x[,2]), main = paste("PCA on", nNonInform, "non informative probes"), asp = 1) # #
+#
+	PC3 <- acpInf$x[,3]#
+	mp = min(PC3)#
+	Mp = max(PC3)#
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.25#
+	plot(acpInf$x[, 1:2], pch = 1, cex = pcex, col = c(2:3)[grp], main = paste("PCA on", nInform, "informative probes"), asp = 1)#
+	par(op)
+yTarg = (best.Fmax + best.Fb)* 0.5#
+xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+#
+aTarg <- 10^(xTarg)#
+alpha = 10^(-aTarg)#
+Pmax = 1 - alpha#
+Q <- qchisq(p = Pmax, df = ncol(X))#
+D <- apply(X^2, 1, sum)#
+inform <- which(D>=Q)#
+length(inform)#
+#
+sub1 <- eset[inform,]#
+acp3 <- prcomp(sub1)			# genes = obs ; exp = variables#
+acp4 <- prcomp(t(sub1))			# exp = obs ; genes = variables#
+#
+par(mfrow=c(2,2))#
+	myPCAplot(acp2$x, grp, main = "Experiments (all probes)")#
+#
+	plot(acp3$x[,2:3], cex = 0.2, col = "royalblue4", main = "", asp = 1)#
+	title(main = paste("Number of informative probes\n", length(inform), "of", nrow(eset), "(alpha =", signif(alpha, 3), ")"))#
+#
+	plot.new()#
+	legend("center", legend = levels(grp), col= mycol[1:nlevels(grp)], pch = 19, cex = 1.5, bty = "n" )#
+#
+	myPCAplot(acp4$x, grp, main = "Experiments (informative probes)")#
+par(op)
+heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(min(100, ncol(sub1))), key = TRUE, trace = "none", density = "none",#
+	breaks = seq(-2.5, 2.5, len = min(100, ncol(sub1))+1),#
+	labRow = grp, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = mycol[grp])
+grp <- metaDat$PrimaryHist	# grp <- metaDat$PrimarySite#
+#
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")#
+#
+if(nlevels(grp)>10){#
+	mycol <- colors()[sample(c(8:152, 365:657), nlevels(grp))]#
+}#
+#
+heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(min(100, ncol(sub1))), key = TRUE, trace = "none", density = "none",#
+	breaks = seq(-2.5, 2.5, len = min(100, ncol(sub1))+1),#
+	labRow = grp, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = mycol[grp])
+names(metaDat)
+grp <- metaDat$HistSubtype1	# grp <- metaDat$PrimarySite#
+#
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")#
+#
+if(nlevels(grp)>10){#
+	mycol <- colors()[sample(c(8:152, 365:657), nlevels(grp))]#
+}#
+#
+heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(min(100, ncol(sub1))), key = TRUE, trace = "none", density = "none",#
+	breaks = seq(-2.5, 2.5, len = min(100, ncol(sub1))+1),#
+	labRow = grp, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = mycol[grp])
+metaDat$HistSubtype1
+metaDat$HistSubtype2
+metaDat$HistSubtype3
+names(metaDat)
+metaDat$SiteSubtype1
+metaDat$SiteSubtype2
+metaDat$SiteSubtype3
+grp <- metaDat$PrimaryHist	# grp <- metaDat$PrimarySite#
+#
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")#
+#
+if(nlevels(grp)>10){#
+	mycol <- colors()[sample(c(8:152, 365:657), nlevels(grp))]#
+}#
+#
+heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(min(100, ncol(sub1))), key = TRUE, trace = "none", density = "none",#
+	breaks = seq(-2.5, 2.5, len = min(100, ncol(sub1))+1),#
+	labRow = grp, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = mycol[grp])
+grp <- metaDat$PrimarySite#
+#
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")#
+#
+if(nlevels(grp)>10){#
+	mycol <- colors()[sample(c(8:152, 365:657), nlevels(grp))]#
+}#
+#
+heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(min(100, ncol(sub1))), key = TRUE, trace = "none", density = "none",#
+	breaks = seq(-2.5, 2.5, len = min(100, ncol(sub1))+1),#
+	labRow = grp, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = mycol[grp])
+grp <- metaDat$PrimaryHist	# grp <- metaDat$PrimarySite#
+#
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")#
+#
+if(nlevels(grp)>10){#
+	mycol <- colors()[sample(c(8:152, 365:657), nlevels(grp))]#
+}#
+#
+heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(min(100, ncol(sub1))), key = TRUE, trace = "none", density = "none",#
+	breaks = seq(-2.5, 2.5, len = min(100, ncol(sub1))+1),#
+	labRow = grp, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = mycol[grp])
+cnv <- loadEntity('syn464292')
+str(cnv$objects)
+str(cnv$objects$eset)
+cnvEnt <- cnv
+cnv <- exprs(cnvEnt$objects$eset)
+dim(cnv); cnv[1:10, 1:10]
+dim(eset); eset[1:10, 1:10]
+dim(metaDat); head(metaDat)
+dim(cnv); cnv[1:10, 1:10]
+dim(eset); eset[1:10, 1:10]
+metaCNV <- loadEntity('syn464191')
+str(metaCNV$objects)
+cnvDat <- metadata$objects$pData
+dim(cnvDat); cnvDat[1:10, 1:10]
+cnvDat <- metaCNV$objects$pData#
+dim(cnvDat); cnvDat[1:10, 1:10]
+dim(cnvDat); cnvDat[1:10, ]
+dim(metaDat); metaDat[1:10, 1:10]
+matchIndex <- which(match(cnvDat$name, metaDat$SampleName))
+matchIndex <- which(!is.na(match(cnvDat$name, metaDat$SampleName)))
+matchIndex
+matchIndex <- match(cnvDat$name, metaDat$SampleName))
+matchIndex <- match(cnvDat$name, metaDat$SampleName)
+matchIndex
+matchIndex <- which(!is.na(match(cnvDat$Name, metaDat$SampleName)))
+matchIndex
+length(matchIndex)
+matchGE <- which(!is.na(match(metaDat$SampleName, cnvDat$Name)))
+length(matchGE)
+matchCNV <- which(!is.na(match(cnvDat$Name, metaDat$SampleName))); length(matchCNV)#
+matchGE <- which(!is.na(match(metaDat$SampleName, cnvDat$Name))); length(matchGE)
+dim(cnvDat); cnvDat[1:10, ]
+dim(metaDat)	#; metaDat[1:10, 1:10]
+matchCNV <- is.element(cnvDat$Name, metaDat$SampleName); length(matchCNV)
+matchGE <- is.element(metaDat$SampleName, cnvDat$Name); length(matchGE)
+matchCNV <- which(as.character(cnvDat$Name) %in% as.character(metaDat$SampleName)); length(matchCNV)
+matchGE <- which(as.character(metaDat$SampleName) %in% as.character(cnvDat$Name)); length(matchGE)
+intersect(metaDat$SampleName, cnvDat$Name)
+length(intersect(metaDat$SampleName, cnvDat$Name))
+length(intersect(cnvDat$Name, metaDat$SampleName))
+t(table(cnvDat$Name))
+t(table(metaDat$SampleName))
+which(t(table(metaDat$SampleName))>1)
+Duplic <- which(t(table(metaDat$SampleName))>1)
+Attention: réplicats dans le GE#
+checkNames <-  table(metaDat$SampleName)#
+Duplic <- which(checkNames>1)
+Duplic
+names(Duplic)
+which(metaDat$SampleName == names(Duplic)[1])
+ij = which(metaDat$SampleName == names(Duplic)[1])#
+plot(eset[,ij])
+plot(eset[,ij], pch = 19)
+plot(eset[,ij], pch = 19, cex = 0.5)
+cor(eset[,ij])
+R = cor(eset[,ij])[1,2]
+R
+R <- c()#
+for(i in 1:length(Duplic)){#
+	ij = which(metaDat$SampleName == names(Duplic)[1])#
+	R = c(R, cor(eset[,ij])[1,2]#
+	}
+R <- c()#
+for(i in 1:length(Duplic)){#
+	ij = which(metaDat$SampleName == names(Duplic)[1])#
+	R = c(R, cor(eset[,ij])[1,2])#
+	}
+R
+R <- c()#
+for(i in 1:length(Duplic)){#
+	ij = which(metaDat$SampleName == names(Duplic)[i])#
+	R = c(R, cor(eset[,ij])[1,2])#
+	}
+R
+R <- c()#
+for(i in 1:length(Duplic)){#
+	ij = which(metaDat$SampleName == names(Duplic)[i])#
+	eset[,ij[1]] <- rowMeans(eset[,ij])#
+	eset <- eset[,-ij[2]]#
+	}
+i
+colnames(eset) <- metaDat$SampleName
+eset <- exprs(ent$objects$eset)#
+dim(eset)	#; eset[1:10, 1:10]
+colnames(eset) <- metaDat$SampleName
+Attention: réplicats dans le GE#
+checkNames <-  table(metaDat$SampleName)#
+Duplic <- which(checkNames>1)#
+#
+R <- c()#
+for(i in 1:length(Duplic)){#
+	ij = which(colnames(eset) == names(Duplic)[i])#
+	metaDat <- metaDat[-ij[2],]#
+	eset[,ij[1]] <- rowMeans(eset[,ij])#
+	eset <- eset[,-ij[2]]#
+	}
+dim(eset); dim(metaDat)
+matchCNV <- which(!is.na(match(cnvDat$Name, metaDat$SampleName))); length(matchCNV)#
+matchGE <- which(!is.na(match(metaDat$SampleName, cnvDat$Name))); length(matchGE)
+ij
+ij[2:length(ij)]
+eset <- exprs(ent$objects$eset)#
+dim(eset)	#; eset[1:10, 1:10]
+metaDat <- metadata$objects$pData#
+dim(metaDat)	#; metaDat[1:10, 1:10]#
+colnames(eset) <- metaDat$SampleName
+Attention: réplicats dans le GE#
+checkNames <-  table(metaDat$SampleName)#
+Duplic <- which(checkNames>1)#
+#
+R <- c()#
+for(i in 1:length(Duplic)){#
+	ij = which(colnames(eset) == names(Duplic)[i])#
+	metaDat <- metaDat[-ij[2:length(ij)],]#
+	eset[,ij[1]] <- rowMeans(eset[,ij])#
+	eset <- eset[,-ij[2:length(ij)]]#
+	}#
+dim(eset); dim(metaDat)#
+#
+matchCNV <- which(!is.na(match(cnvDat$Name, metaDat$SampleName))); length(matchCNV)#
+matchGE <- which(!is.na(match(metaDat$SampleName, cnvDat$Name))); length(matchGE)
+colnames(cnv)
+colnames(cnv)[1:10]
+cnvDat$Name[1:10]
+sort(cnvDat$Name)[1:10]
+sort(colnames(cnv))[1:10]
+cnv <- cnv[,matchCNV]#
+cnv <- cnv[,order(colnames(cnv))]#
+cnvDat <- cnvDat[matchCNV,]#
+cnvDat <- cnvDat[order(cnvDat$Name),]#
+eset <- eset[,matchGE]#
+eset <- eset[,order(colnames(eset))]#
+metaDat <- metaDat[matchGE,]#
+metaDat <- metaDat[order(metaDat$SampleName),]#
+#
+cbind.data.frame(colnames(cnv), cnvDat$Name, colnames(eset), metaDat$SampleName)
+matchCNV
+matchCNV <- which(!is.na(match(cnvDat$Name, metaDat$SampleName))); length(matchCNV) 	# which CNV are present in GE#
+matchGE <- which(!is.na(match(metaDat$SampleName, cnvDat$Name))); length(matchGE) 	    # which GE are present in CNV#
+#
+cnv <- cnv[,matchCNV]#
+cnv <- cnv[,order(colnames(cnv))]#
+cnvDat <- cnvDat[matchCNV,]#
+cnvDat <- cnvDat[order(cnvDat$Name),]#
+eset <- eset[,matchGE]#
+eset <- eset[,order(colnames(eset))]#
+metaDat <- metaDat[matchGE,]#
+metaDat <- metaDat[order(metaDat$SampleName),]
+cbind.data.frame(colnames(cnv), cnvDat$Name, colnames(eset), metaDat$SampleName)
+eset <- exprs(ent$objects$eset)#
+dim(eset)	#; eset[1:10, 1:10]
+metaDat <- metadata$objects$pData#
+dim(metaDat)	#; metaDat[1:10, 1:10]#
+colnames(eset) <- metaDat$SampleName
+cnv <- exprs(cnvEnt$objects$eset)#
+dim(cnv)	#; cnv[1:10, 1:10]
+cnvDat <- metaCNV$objects$pData#
+dim(cnvDat)	#; cnvDat[1:10, ]#
+colnames(cnv) <- cnvDat$SampleName#
+#
+# Attention: réplicats dans le GE#
+checkNames <-  table(metaDat$SampleName)#
+Duplic <- which(checkNames>1)#
+#
+R <- c()#
+for(i in 1:length(Duplic)){#
+	ij = which(colnames(eset) == names(Duplic)[i])#
+	metaDat <- metaDat[-ij[2:length(ij)],]#
+	eset[,ij[1]] <- rowMeans(eset[,ij])#
+	eset <- eset[,-ij[2:length(ij)]]#
+	}#
+dim(eset); dim(metaDat)#
+#
+matchCNV <- which(!is.na(match(cnvDat$Name, metaDat$SampleName))); length(matchCNV) 	# which CNV are present in GE#
+matchGE <- which(!is.na(match(metaDat$SampleName, cnvDat$Name))); length(matchGE) 	    # which GE are present in CNV#
+#
+cnv <- cnv[,matchCNV]#
+cnv <- cnv[,order(colnames(cnv))]#
+cnvDat <- cnvDat[matchCNV,]#
+cnvDat <- cnvDat[order(cnvDat$Name),]#
+eset <- eset[,matchGE]#
+eset <- eset[,order(colnames(eset))]#
+metaDat <- metaDat[matchGE,]#
+metaDat <- metaDat[order(metaDat$SampleName),]#
+#
+cbind.data.frame(colnames(cnv), cnvDat$Name, colnames(eset), metaDat$SampleName)
+matchCNV
+dim(cnv)
+cnv <- exprs(cnvEnt$objects$eset)#
+dim(cnv)	#; cnv[1:10, 1:10]
+Upload CNV metadata : syn464191#
+metaCNV <- loadEntity('syn464191')#
+cnvDat <- metaCNV$objects$pData#
+dim(cnvDat)	#; cnvDat[1:10, ]#
+colnames(cnv) <- cnvDat$SampleName
+cnv <- exprs(cnvEnt$objects$eset)#
+dim(cnv)	#; cnv[1:10, 1:10]
+data(rat)
+data(rats)
+library(synapseClient)#
+library(affy)#
+synapseLogin("frederic.commo@sagebase.org", "Se@ttle7")#
+#
+# Returns the list of series in TCGA#
+qry <- synapseQuery('select id, name from study where study.parentId == "syn275039" and study.repository == "TCGA"')#
+qry#
+#
+# Upload Normalized GE-Agilent4502a#
+ent <- loadEntity('syn313607')#
+#
+# Access to expression matrix#
+eset <- exprs(ent$objects$eset)#
+dim(eset)#
+#
+# Upload clinical data associated with syn285162 (TGCA_Lung_ADK parent Id)#
+metadata <- loadEntity('syn673169')#
+metaDat <- metadata$objects$metadata#
+#
+# Find the column containing hthgu133a file names#
+columnMatchTotals <- apply(metaDat, 2, function(x){sum(!is.na(match(colnames(eset), x)))})#
+columnId <- which(columnMatchTotals > 0); length(columnId)#
+columnMatchTotals[columnId]
+synapseLogin()
+synapseLogin("frederic.commo@sagebase.org", "Se@ttle7")
+qry <- synapseQuery('select id, name from study where study.parentId == "syn275039" and study.repository == "TCGA"')
+synapseLogin("frederic.commo@sagebase.org", "Se@ttle7")
+Recherche de genes informatifs par ACP#
+# A partir de la matrice virtuelle initiale#
+#
+op <- par(no.readonly = TRUE)#
+# memory.limit(size = 4000)#
+library(MASS)#
+library(KernSmooth)#
+library(mvtnorm)#
+library(lattice)#
+library(limma)#
+library(multtest)#
+library(gplots)#
+library(mclust)#
+library(imputation)#
+library(impute)#
+library(survival)#
+pathScripts = "/Users/fredcommo/Documents/Stats/Fred_Scripts"#
+source(paste(pathScripts, "/graph3D.9.R", sep = ""))#
+source(paste(pathScripts, "/rb.colors.R", sep = ""))#
+source(paste(pathScripts, "/plot.express.R", sep = ""))#
+source(paste(pathScripts, "/heatmap.3.R", sep = ""))#
+source(paste(pathScripts, "/rot3D.2.R", sep = ""))#
+source(paste(pathScripts, "/BoxPoints5.R", sep = ""))#
+source(paste(pathScripts, "/Resamp.T.v3.R", sep = ""))#
+#
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")#
+#
+###############################################################################
+#
+	# Kim lung#
+data.address <- "/Volumes/FREECOM HDD/Databases GE/Data sets Poumon/Kim/Kim.data2.txt"#
+info.address <- "/Volumes/FREECOM HDD/Databases GE/Data sets Poumon/Kim/Kim.patients.txt"#
+eset <- read.table(data.address, header = T, sep = "\t")#
+infos <- read.table(info.address, header = T, sep = "\t")#
+infos$Recurrence <- factor(infos$Recurrence)
+Recherche de genes informatifs par ACP#
+# A partir de la matrice virtuelle initiale#
+#
+op <- par(no.readonly = TRUE)#
+# memory.limit(size = 4000)#
+library(MASS)#
+library(KernSmooth)#
+library(mvtnorm)#
+library(lattice)#
+library(limma)#
+library(multtest)#
+library(gplots)#
+library(mclust)#
+library(imputation)#
+library(impute)#
+library(survival)#
+pathScripts = "/Users/fredcommo/Documents/Stats/Fred_Scripts"#
+source(paste(pathScripts, "/graph3D.9.R", sep = ""))#
+source(paste(pathScripts, "/rb.colors.R", sep = ""))#
+source(paste(pathScripts, "/plot.express.R", sep = ""))#
+source(paste(pathScripts, "/heatmap.3.R", sep = ""))#
+source(paste(pathScripts, "/rot3D.2.R", sep = ""))#
+source(paste(pathScripts, "/BoxPoints5.R", sep = ""))#
+source(paste(pathScripts, "/Resamp.T.v3.R", sep = ""))#
+source(paste(pathScripts, "/myPCAplot.R", sep = ""))#
+#
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")#
+#
+###############################################################################
+#
+	# Kim lung#
+data.address <- "/Volumes/FREECOM HDD/Databases GE/Data sets Poumon/Kim/Kim.data2.txt"#
+info.address <- "/Volumes/FREECOM HDD/Databases GE/Data sets Poumon/Kim/Kim.patients.txt"#
+eset <- read.table(data.address, header = T, sep = "\t")#
+infos <- read.table(info.address, header = T, sep = "\t")#
+infos$Recurrence <- factor(infos$Recurrence)#
+#
+# ! v?rifier !#
+verif <- ifelse(colnames(eset)==infos$Id, "ok", "error")#
+length(which(verif=="error"))#
+#
+Time<- infos$RecFreeSurv_month#
+status <- c(0, 1)[infos$Recurrence]#
+st <- Surv(Time, status)#
+#
+grp <- factor(infos$TumourType)# grp <- factor(infos$IHC_status1)#
+###############################################################################
+	# ACPs initiales#
+if(any(is.na(eset))){#
+	eset <- impute.knn(as.matrix(eset))$data#
+  }#
+eset <- as.data.frame(eset)#
+acp1 <- prcomp(scale(eset))			# genes = obs ; exp = variables#
+acp2 <- prcomp(scale(t(eset)))			# exp = obs ; genes = variables#
+#
+par(mfrow=c(2,2))#
+	plot(acp1, main = "Genes")#
+	plot(acp2, main = "Experiments")#
+	myPCAplot(acp1$x[,1:3], Fact = rep("A", nrow(eset)), main = "Genes", Leg = FALSE)#
+	myPCAplot(acp2$x[,1:3], Fact = grp, main = "Experiments")#
+	# legend("topright", legend = levels(grp), pch = 19, col = mycol[1:nlevels(grp)], bty = "n")#
+par(op)
+par(mfrow=c(2,2))#
+	plot(acp1, main = "Genes")#
+	plot(acp2, main = "Experiments")#
+	myPCAplot(acp1$x[,1:3], Fact = rep("A", nrow(eset)), main = "Genes", Leg = FALSE)#
+	RGB <- myPCAplot(acp2$x[,1:3], Fact = grp, main = "Experiments")#
+	# legend("topright", legend = levels(grp), pch = 19, col = mycol[1:nlevels(grp)], bty = "n")#
+par(op)
+Diagnostic sur la valeur de alpha#
+X <- as.data.frame(acp1$x[,2:3])	# X <- as.data.frame(acp2$x[,2:3]) # s?rie Daniel gautheret#
+X <- scale(X)#
+X <- as.data.frame(X)#
+D <- rowSums(X^2)#
+#
+# a.values <- c(0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 5))#
+a.values <- c(0.025, 0.5, 5)#
+#
+par(mfrow = c(3, 2))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	# pt.col <- ifelse(D>=Q, "red", "grey")#
+#
+	theta <- seq(0, 90, by = 1)#
+	x1 <- sqrt(Q)*cos(theta)#
+	y1 <- sqrt(Q)*sin(theta)#
+#
+	plot(X, cex = 0.2, pch = 19, col = ifelse(D<=Q, "royalblue4", "grey"))#
+	points(y1~x1, col = "red", cex = 0.1, pch = 8, xlim = range(X))#
+	inform <- which(D<=Q)#
+	title(main = paste("Q =", signif(Q, 3), ";", length(inform), "probes"))#
+	tmp.n.select <- tmp.S2 <- tmp.sum.trace <- NA#
+	if(length(inform)>0){#
+		tmp.n.select <- length(inform)#
+		sub.inf <- t(eset[inform,])#
+		acpTest <- prcomp(sub.Inf)#
+		tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5, col = mycol[grp], #
+		# 	xlim = range(-100, 100), ylim = range(-100, 100), main = "Samples segregation")#
+		myPCAplot(prcomp(sub.inf)$x[, 1:3], Fact = grp, Col = RGB, #
+			xlim = range(-100, 100), ylim = range(-100, 100), main = paste("Samples segregation", "; Trace", tmpTrace))#
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5)	#, col = mycol[grp])#
+		# tmp.S2 <- var(as.vector(as.matrix(sub.inf)))#
+		# tmp.sum.trace <- sum(diag(var(sub.inf)))#
+		}#
+	# Score <- rbind(Score, c(a, tmp.n.select, tmp.sum.trace, tmp.S2))#
+	# S2 <- c(S2, tmp.S2)#
+	# sum.trace <- c(sum.trace, tmp.sum.trace)#
+	}#
+# plot(sum.trace, a.values)#
+par(op)
+par(mfrow = c(3, 2))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	# pt.col <- ifelse(D>=Q, "red", "grey")#
+#
+	theta <- seq(0, 90, by = 1)#
+	x1 <- sqrt(Q)*cos(theta)#
+	y1 <- sqrt(Q)*sin(theta)#
+#
+	plot(X, cex = 0.2, pch = 19, col = ifelse(D<=Q, "royalblue4", "grey"))#
+	points(y1~x1, col = "red", cex = 0.1, pch = 8, xlim = range(X))#
+	inform <- which(D<=Q)#
+	title(main = paste("Q =", signif(Q, 3), ";", length(inform), "probes"))#
+	tmp.n.select <- tmp.S2 <- tmp.sum.trace <- NA#
+	if(length(inform)>0){#
+		tmp.n.select <- length(inform)#
+		sub.inf <- t(eset[inform,])#
+		acpTest <- prcomp(sub.inf)#
+		tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5, col = mycol[grp], #
+		# 	xlim = range(-100, 100), ylim = range(-100, 100), main = "Samples segregation")#
+		myPCAplot(prcomp(sub.inf)$x[, 1:3], Fact = grp, Col = RGB, #
+			xlim = range(-100, 100), ylim = range(-100, 100), main = paste("Samples segregation", "; Trace", tmpTrace))#
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5)	#, col = mycol[grp])#
+		# tmp.S2 <- var(as.vector(as.matrix(sub.inf)))#
+		# tmp.sum.trace <- sum(diag(var(sub.inf)))#
+		}#
+	# Score <- rbind(Score, c(a, tmp.n.select, tmp.sum.trace, tmp.S2))#
+	# S2 <- c(S2, tmp.S2)#
+	#  <- c(sum.trace, tmp.sum.trace)#
+	}#
+# plot(sum.trace, a.values)#
+par(op)
+par(mfrow = c(3, 2))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	# pt.col <- ifelse(D>=Q, "red", "grey")#
+#
+	theta <- seq(0, 90, by = 1)#
+	x1 <- sqrt(Q)*cos(theta)#
+	y1 <- sqrt(Q)*sin(theta)#
+#
+	plot(X, cex = 0.2, pch = 19, col = ifelse(D<=Q, "royalblue4", "grey"))#
+	points(y1~x1, col = "red", cex = 0.1, pch = 8, xlim = range(X))#
+	inform <- which(D<=Q)#
+	title(main = paste("Q =", signif(Q, 3), ";", length(inform), "probes"))#
+	tmp.n.select <- tmp.S2 <- tmp.sum.trace <- NA#
+	if(length(inform)>0){#
+		tmp.n.select <- length(inform)#
+		sub.inf <- t(eset[inform,])#
+		acpTest <- prcomp(sub.inf)#
+		tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5, col = mycol[grp], #
+		# 	xlim = range(-100, 100), ylim = range(-100, 100), main = "Samples segregation")#
+		myPCAplot(prcomp(sub.inf)$x[, 1:3], Fact = grp, Col = RGB, #
+			xlim = range(-50, 50), ylim = range(-100, 100), main = paste("Samples segregation", "; Trace", round(tmpTrace)))#
+		# plot(prcomp(sub.inf)$x[, 1:2], pch = 19, cex = 1.5)	#, col = mycol[grp])#
+		# tmp.S2 <- var(as.vector(as.matrix(sub.inf)))#
+		# tmp.sum.trace <- sum(diag(var(sub.inf)))#
+		}#
+	# Score <- rbind(Score, c(a, tmp.n.select, tmp.sum.trace, tmp.S2))#
+	# S2 <- c(S2, tmp.S2)#
+	#  <- c(sum.trace, tmp.sum.trace)#
+	}#
+# plot(sum.trace, a.values)#
+par(op)
+Fonction logistique 5PL#
+	Richard <- function(x, Fb, Fmax, b, c, d){#
+		y <- Fb + (Fmax - Fb)/(1 + exp(-(x-c)/b))^d#
+		return(y)#
+		}#
+#
+# Fonction sce (somme carr? r?sidus) avec pond?rations#
+	sce.5P <- function(param, xobs, yobs, w) {#
+		# Fb <- param[1]#
+		Fb = 0#
+		Fmax <- param[2]#
+		b <- param[3]#
+		c <- param[4]#
+		d <- param[5]#
+		ytheo <- Richard(xobs, Fb, Fmax, b, c, d)#
+		sq.res <- (yobs - ytheo)^2#
+		weights <- 1/sq.res^w#
+		return(sum(weights*sq.res))#
+		}#
+#
+# Fonction sce (somme carr? r?sidus) avec pond?rations#
+	sce.5P.diag <- function(yobs, ytheo, w) {#
+		sq.res <- (yobs - ytheo)^2#
+		weights <- 1/sq.res^w#
+		return(weights)#
+		}#
+x <- as.numeric(log10(Score$aValues))#
+y <- as.numeric(Score$Trace)#
+#
+if(any(is.na(y) | is.na(x))){#
+  na.index <- which(is.na(y) | is.na(x))#
+  y <- y[-na.index]#
+  x <- x[-na.index]#
+}#
+#
+# initialisation des parametres#
+Fb.ini = 0	                                                 # min(y)#
+Fmax.ini = max(y)	                                           #*1.05#
+c.ini = 0                                                    #(max(x) + min(x))/2#
+z <- (y)/(Fmax.ini - y)#
+if (any(abs(z)==Inf)) z[abs(z)==Inf] <- NA#
+b.ini = coef(lm(x ~ log(z)))[2]#
+d.ini = 1#
+init <- c(Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+w = 0#
+#
+# Estimation du modele#
+	best <- nlm(f = sce.5P, p = as.vector(init), xobs = x, yobs = y, w = w)#
+  best#
+#
+# R?cup?ration des param?tres#
+	best.Fb <- best$estimate[1]#
+	best.Fmax <- best$estimate[2]#
+	best.b <- best$estimate[3]#
+	best.c <- best$estimate[4]#
+	best.d <- best$estimate[5]#
+#
+# Diagnostic de r?gression#
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)#
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)#
+  yfitInit <- Richard(x, Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+	plot(x, y, lwd = 2, cex = 1.25, col = "grey25", xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+	lines(yfitInit ~ x, lwd = 3, lty = 3, col = "grey75")#
+	lines(yfit ~ newx, lwd = 3, col = "dodgerblue2")#
+	# abline(h = c(best.Fb, best.Fmax))#
+#
+	informTable <- c()#
+	for(i in seq(0.05, 1, by = 0.05)){#
+		yTarg = (best.Fmax + best.Fb)*i#
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+#
+		aTarg <- 10^(xTarg)#
+		alpha = 10^(-aTarg)#
+		Pmax = 1 - alpha#
+		Q <- qchisq(p = Pmax, df = ncol(X))#
+#
+		inform <- which(D>=Q)#
+		nInform <- length(inform)#
+		nNonInform <- nrow(eset) - nInform#
+		informTable <- rbind(informTable, c(Prop = i, Alpha = signif(alpha, 3), nInf = nInform, nonInf = nNonInform))#
+	}#
+#
+	informTable
+Score
+calcul de la trace#
+#
+	# Diagnostic sur la valeur de alpha#
+X <- as.data.frame(acp1$x[,2:3])	# X <- as.data.frame(acp2$x[,2:3]) # s?rie Daniel gautheret#
+X <- scale(X)#
+X <- as.data.frame(X)#
+D <- rowSums(X^2)#
+#
+a.values <- c(1e-5, 1e-4, 1e-3, 1e-2, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 22, by = 3))#
+#
+useTrace = T#
+Score <- c()#
+#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	lInf <- length(inform)#
+#
+	tmpScore <- NA#
+#
+	if(lInf>0 & lInf<nrow(eset)){#
+		tmpNselect <- length(inform)#
+		subInf <- t(eset[inform,])#
+		tmpS2 <- var(as.vector(as.matrix(subInf)))#
+		tmpScore <- c(aValues = a, nProbes = tmpNselect, S2 = tmpS2)#
+#
+			# calculer les variances sur les axes1 et 2 de la nouvelle acp ?#
+		if(useTrace){#
+			acpTest <- prcomp(subInf)#
+			tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+			tmpScore <- c(tmpScore, Trace = tmpTrace)#
+		}#
+#
+		Score <- rbind(Score, tmpScore)#
+		}#
+	}#
+#
+rownames(Score) <- seq(1, nrow(Score))#
+Score <- as.data.frame(Score)#
+Score
+colnames(Score) <- c("aValues", "nProbes", "S2", "Trace")#
+#
+plot(log10(Score$aValues), Score$Trace, xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+#
+# Fonction logistique 5PL#
+	Richard <- function(x, Fb, Fmax, b, c, d){#
+		y <- Fb + (Fmax - Fb)/(1 + exp(-(x-c)/b))^d#
+		return(y)#
+		}#
+#
+# Fonction sce (somme carr? r?sidus) avec pond?rations#
+	sce.5P <- function(param, xobs, yobs, w) {#
+		# Fb <- param[1]#
+		Fb = 0#
+		Fmax <- param[2]#
+		b <- param[3]#
+		c <- param[4]#
+		d <- param[5]#
+		ytheo <- Richard(xobs, Fb, Fmax, b, c, d)#
+		sq.res <- (yobs - ytheo)^2#
+		weights <- 1/sq.res^w#
+		return(sum(weights*sq.res))#
+		}#
+#
+# Fonction sce (somme carr? r?sidus) avec pond?rations#
+	sce.5P.diag <- function(yobs, ytheo, w) {#
+		sq.res <- (yobs - ytheo)^2#
+		weights <- 1/sq.res^w#
+		return(weights)#
+		}#
+x <- as.numeric(log10(Score$aValues))#
+y <- as.numeric(Score$Trace)#
+#
+if(any(is.na(y) | is.na(x))){#
+  na.index <- which(is.na(y) | is.na(x))#
+  y <- y[-na.index]#
+  x <- x[-na.index]#
+}#
+#
+# initialisation des parametres#
+Fb.ini = 0	                                                 # min(y)#
+Fmax.ini = max(y)	                                           #*1.05#
+c.ini = 0                                                    #(max(x) + min(x))/2#
+z <- (y)/(Fmax.ini - y)#
+if (any(abs(z)==Inf)) z[abs(z)==Inf] <- NA#
+b.ini = coef(lm(x ~ log(z)))[2]#
+d.ini = 1#
+init <- c(Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+w = 0#
+#
+# Estimation du modele#
+	best <- nlm(f = sce.5P, p = as.vector(init), xobs = x, yobs = y, w = w)#
+  best#
+#
+# R?cup?ration des param?tres#
+	best.Fb <- best$estimate[1]#
+	best.Fmax <- best$estimate[2]#
+	best.b <- best$estimate[3]#
+	best.c <- best$estimate[4]#
+	best.d <- best$estimate[5]#
+#
+# Diagnostic de r?gression#
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)#
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)#
+  yfitInit <- Richard(x, Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+	plot(x, y, lwd = 2, cex = 1.25, col = "grey25", xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+	lines(yfitInit ~ x, lwd = 3, lty = 3, col = "grey75")#
+	lines(yfit ~ newx, lwd = 3, col = "dodgerblue2")#
+	# abline(h = c(best.Fb, best.Fmax))#
+#
+	informTable <- c()#
+	for(i in seq(0.05, 1, by = 0.05)){#
+		yTarg = (best.Fmax + best.Fb)*i#
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+#
+		aTarg <- 10^(xTarg)#
+		alpha = 10^(-aTarg)#
+		Pmax = 1 - alpha#
+		Q <- qchisq(p = Pmax, df = ncol(X))#
+#
+		inform <- which(D>=Q)#
+		nInform <- length(inform)#
+		nNonInform <- nrow(eset) - nInform#
+		informTable <- rbind(informTable, c(Prop = i, Alpha = signif(alpha, 3), nInf = nInform, nonInf = nNonInform))#
+	}#
+#
+	informTable
+op <- par(no.readonly = TRUE)#
+# memory.limit(size = 4000)#
+library(MASS)#
+library(KernSmooth)#
+library(mvtnorm)#
+library(lattice)#
+library(limma)#
+library(multtest)#
+library(gplots)#
+library(mclust)#
+library(imputation)#
+library(impute)#
+library(survival)#
+pathScripts = "/Users/fredcommo/Documents/Stats/Fred_Scripts"#
+source(paste(pathScripts, "/graph3D.9.R", sep = ""))#
+source(paste(pathScripts, "/rb.colors.R", sep = ""))#
+source(paste(pathScripts, "/plot.express.R", sep = ""))#
+source(paste(pathScripts, "/heatmap.3.R", sep = ""))#
+source(paste(pathScripts, "/rot3D.2.R", sep = ""))#
+source(paste(pathScripts, "/BoxPoints5.R", sep = ""))#
+source(paste(pathScripts, "/Resamp.T.v3.R", sep = ""))#
+source(paste(pathScripts, "/myPCAplot.R", sep = ""))#
+#
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")#
+#
+###############################################################################
+#
+	# Kim lung#
+data.address <- "/Volumes/FREECOM HDD/Databases GE/Data sets Poumon/Kim/Kim.data2.txt"#
+info.address <- "/Volumes/FREECOM HDD/Databases GE/Data sets Poumon/Kim/Kim.patients.txt"#
+eset <- read.table(data.address, header = T, sep = "\t")#
+infos <- read.table(info.address, header = T, sep = "\t")#
+infos$Recurrence <- factor(infos$Recurrence)#
+#
+# ! v?rifier !#
+verif <- ifelse(colnames(eset)==infos$Id, "ok", "error")#
+length(which(verif=="error"))#
+#
+Time<- infos$RecFreeSurv_month#
+status <- c(0, 1)[infos$Recurrence]#
+st <- Surv(Time, status)#
+#
+grp <- factor(infos$TumourType)# grp <- factor(infos$IHC_status1)
+ACPs initiales#
+if(any(is.na(eset))){#
+	eset <- impute.knn(as.matrix(eset))$data#
+  }#
+eset <- as.data.frame(eset)#
+acp1 <- prcomp(scale(eset))			# genes = obs ; exp = variables#
+acp2 <- prcomp(scale(t(eset)))			# exp = obs ; genes = variables#
+#
+par(mfrow=c(2,2))#
+	plot(acp1, main = "Genes")#
+	plot(acp2, main = "Experiments")#
+	myPCAplot(acp1$x[,1:3], Fact = rep("A", nrow(eset)), main = "Genes", Leg = FALSE)#
+	RGB <- myPCAplot(acp2$x[,1:3], Fact = grp, main = "Experiments")#
+	# legend("topright", legend = levels(grp), pch = 19, col = mycol[1:nlevels(grp)], bty = "n")#
+par(op)
+Diagnostic sur la valeur de alpha#
+X <- as.data.frame(acp1$x[,2:3])	# X <- as.data.frame(acp2$x[,2:3]) # s?rie Daniel gautheret#
+X <- scale(X)#
+X <- as.data.frame(X)#
+D <- rowSums(X^2)
+a.values <- c(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 6))
+length(a.values)
+a.values <- c(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 6))#
+#
+par(mfrow = c(3, 4))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	tmp.n.select <- length(inform)#
+	sub.inf <- t(eset[inform,])#
+	acpTest <- prcomp(sub.inf)#
+	tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+		myPCAplot(prcomp(sub.inf)$x[, 1:3], Fact = grp, Col = RGB, #
+			xlim = range(-50, 50), ylim = range(-100, 100), main = paste("Samples segregation", "; Trace", round(tmpTrace))#
+	}#
+par(op)
+a.values <- c(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 6))#
+#
+par(mfrow = c(3, 4))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	tmp.n.select <- length(inform)#
+	sub.inf <- t(eset[inform,])#
+	acpTest <- prcomp(sub.inf)#
+	tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+		myPCAplot(prcomp(sub.inf)$x[, 1:3], Fact = grp, Col = RGB,#
+			xlim = range(-50, 50), ylim = range(-100, 100), main = paste("Samples segregation", "; Trace", round(tmpTrace)))#
+	}#
+par(op)
+a.values <- c(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 6))#
+#
+par(mfrow = c(3, 4))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	tmp.n.select <- length(inform)#
+	sub.inf <- t(eset[inform,])#
+	acpTest <- prcomp(sub.inf)#
+	tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+		myPCAplot(prcomp(sub.inf)$x[, 1:3], Fact = grp, Col = RGB,#
+			xlim = range(-100, 100), ylim = range(-120, 120), main = paste("Trace", round(tmpTrace)))#
+	}#
+par(op)
+a.values <- c(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 6))#
+#
+par(mfrow = c(3, 4))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	tmp.n.select <- length(inform)#
+	sub.inf <- t(eset[inform,])#
+	acpTest <- prcomp(sub.inf)#
+	tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+		myPCAplot(prcomp(sub.inf)$x[, 1:3], Fact = grp, Col = RGB,#
+			xlim = range(-120, 120), ylim = range(-150, 150), Leg = FALSE, main = paste("probes: ", length(inform), "\nTrace", round(tmpTrace)))#
+	}#
+par(op)
+a.values <- c(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 6))#
+#
+par(mfrow = c(3, 4))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	tmp.n.select <- length(inform)#
+	sub.inf <- t(eset[inform,])#
+	acpTest <- prcomp(sub.inf)#
+	tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+		myPCAplot(prcomp(sub.inf)$x[, 1:3], Fact = grp, Col = RGB,#
+			xlim = range(-100, 100), ylim = range(-150, 150), Leg = FALSE, main = paste("probes: ", length(inform), "\nTrace", round(tmpTrace)))#
+	}#
+par(op)
+a.values <- c(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 6))#
+#
+par(mfrow = c(3, 4))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	tmp.n.select <- length(inform)#
+	sub.inf <- t(eset[inform,])#
+	acpTest <- prcomp(sub.inf)#
+	tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+		myPCAplot(prcomp(sub.inf)$x[, 1:3], Fact = grp, Col = RGB,#
+			xlim = range(-100, 100), ylim = range(-100, 100), Leg = FALSE, main = paste("probes: ", length(inform), "\nTrace", round(tmpTrace)))#
+	}#
+par(op)
+a.values <- c(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 6))#
+#
+par(mfrow = c(3, 4))#
+Score <- S2 <- sum.trace <- c()#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	tmp.n.select <- length(inform)#
+	sub.inf <- t(eset[inform,])#
+	acpTest <- prcomp(sub.inf)#
+	tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+		myPCAplot(prcomp(sub.inf)$x[, 1:3], Fact = grp, Col = RGB,#
+			xlim = range(-100, 100), ylim = range(-120, 120), Leg = FALSE, main = paste("probes: ", length(inform), "\nTrace", round(tmpTrace)))#
+	}#
+par(op)
+calcul de la trace#
+#
+	# Diagnostic sur la valeur de alpha#
+X <- as.data.frame(acp1$x[,2:3])	# X <- as.data.frame(acp2$x[,2:3]) # s?rie Daniel gautheret#
+X <- scale(X)#
+X <- as.data.frame(X)#
+D <- rowSums(X^2)#
+#
+a.values <- c(1e-5, 1e-4, 1e-3, 1e-2, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 22, by = 3))#
+#
+useTrace = T#
+Score <- c()#
+#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	lInf <- length(inform)#
+#
+	tmpScore <- NA#
+#
+	if(lInf>0 & lInf<=nrow(eset)){#
+		tmpNselect <- length(inform)#
+		subInf <- t(eset[inform,])#
+		tmpS2 <- var(as.vector(as.matrix(subInf)))#
+		tmpScore <- c(aValues = a, nProbes = tmpNselect, S2 = tmpS2)#
+#
+			# calculer les variances sur les axes1 et 2 de la nouvelle acp ?#
+		if(useTrace){#
+			acpTest <- prcomp(subInf)#
+			tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+			tmpScore <- c(tmpScore, Trace = tmpTrace)#
+		}#
+#
+		Score <- rbind(Score, tmpScore)#
+		}#
+	}#
+#
+rownames(Score) <- seq(1, nrow(Score))#
+Score <- as.data.frame(Score)#
+Score
+colnames(Score) <- c("aValues", "nProbes", "S2", "Trace")#
+#
+plot(log10(Score$aValues), Score$Trace, xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")
+Score$aValues
+log10(Score$aValues)
+log2(Score$aValues)
+plot(log2(Score$aValues), Score$Trace, xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")
+a.values <- c(1e-4, 1e-3, 1e-2, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 24, by = 3))#
+#
+useTrace = T#
+Score <- c()#
+#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	lInf <- length(inform)#
+#
+	tmpScore <- NA#
+#
+	if(lInf>0 & lInf<=nrow(eset)){#
+		tmpNselect <- length(inform)#
+		subInf <- t(eset[inform,])#
+		tmpS2 <- var(as.vector(as.matrix(subInf)))#
+		tmpScore <- c(aValues = a, nProbes = tmpNselect, S2 = tmpS2)#
+#
+			# calculer les variances sur les axes1 et 2 de la nouvelle acp ?#
+		if(useTrace){#
+			acpTest <- prcomp(subInf)#
+			tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+			tmpScore <- c(tmpScore, Trace = tmpTrace)#
+		}#
+#
+		Score <- rbind(Score, tmpScore)#
+		}#
+	}#
+#
+rownames(Score) <- seq(1, nrow(Score))#
+Score <- as.data.frame(Score)#
+Score
+plot(log10(Score$aValues), Score$Trace, xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")
+a.values <- c(1e-4, 1e-3, 1e-2, 0.025, 0.05, 0.1, 0.25, 0.5, seq(1, 28, by = 3))#
+#
+useTrace = T#
+Score <- c()#
+#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	lInf <- length(inform)#
+#
+	tmpScore <- NA#
+#
+	if(lInf>0 & lInf<=nrow(eset)){#
+		tmpNselect <- length(inform)#
+		subInf <- t(eset[inform,])#
+		tmpS2 <- var(as.vector(as.matrix(subInf)))#
+		tmpScore <- c(aValues = a, nProbes = tmpNselect, S2 = tmpS2)#
+#
+			# calculer les variances sur les axes1 et 2 de la nouvelle acp ?#
+		if(useTrace){#
+			acpTest <- prcomp(subInf)#
+			tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+			tmpScore <- c(tmpScore, Trace = tmpTrace)#
+		}#
+#
+		Score <- rbind(Score, tmpScore)#
+		}#
+	}#
+#
+rownames(Score) <- seq(1, nrow(Score))#
+Score <- as.data.frame(Score)#
+Score#
+#
+# colnames(Score) <- c("aValues", "nProbes", "S2", "Trace")#
+#
+plot(log10(Score$aValues), Score$Trace, xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")
+Fonction logistique 5PL#
+	Richard <- function(x, Fb, Fmax, b, c, d){#
+		y <- Fb + (Fmax - Fb)/(1 + exp(-(x-c)/b))^d#
+		return(y)#
+		}#
+#
+# Fonction sce (somme carr? r?sidus) avec pond?rations#
+	sce.5P <- function(param, xobs, yobs, w) {#
+		# Fb <- param[1]#
+		Fb = 0#
+		Fmax <- param[2]#
+		b <- param[3]#
+		c <- param[4]#
+		d <- param[5]#
+		ytheo <- Richard(xobs, Fb, Fmax, b, c, d)#
+		sq.res <- (yobs - ytheo)^2#
+		weights <- 1/sq.res^w#
+		return(sum(weights*sq.res))#
+		}#
+#
+# Fonction sce (somme carr? r?sidus) avec pond?rations#
+	sce.5P.diag <- function(yobs, ytheo, w) {#
+		sq.res <- (yobs - ytheo)^2#
+		weights <- 1/sq.res^w#
+		return(weights)#
+		}#
+x <- as.numeric(log10(Score$aValues))#
+y <- as.numeric(Score$Trace)#
+#
+if(any(is.na(y) | is.na(x))){#
+  na.index <- which(is.na(y) | is.na(x))#
+  y <- y[-na.index]#
+  x <- x[-na.index]#
+}#
+#
+# initialisation des parametres#
+Fb.ini = 0	                                                 # min(y)#
+Fmax.ini = max(y)	                                           #*1.05#
+c.ini = 0                                                    #(max(x) + min(x))/2#
+z <- (y)/(Fmax.ini - y)#
+if (any(abs(z)==Inf)) z[abs(z)==Inf] <- NA#
+b.ini = coef(lm(x ~ log(z)))[2]#
+d.ini = 1#
+init <- c(Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+w = 0#
+#
+# Estimation du modele#
+	best <- nlm(f = sce.5P, p = as.vector(init), xobs = x, yobs = y, w = w)#
+  best#
+#
+# R?cup?ration des param?tres#
+	best.Fb <- best$estimate[1]#
+	best.Fmax <- best$estimate[2]#
+	best.b <- best$estimate[3]#
+	best.c <- best$estimate[4]#
+	best.d <- best$estimate[5]#
+#
+# Diagnostic de r?gression#
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)#
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)#
+  yfitInit <- Richard(x, Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+	plot(x, y, lwd = 2, cex = 1.25, col = "grey25", xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+	lines(yfitInit ~ x, lwd = 3, lty = 3, col = "grey75")#
+	lines(yfit ~ newx, lwd = 3, col = "dodgerblue2")#
+	# abline(h = c(best.Fb, best.Fmax))
+initialisation des parametres#
+Fb.ini = 0	                                                 # min(y)#
+Fmax.ini = max(y)	                                           #*1.05#
+c.ini = 0                                                    #(max(x) + min(x))/2#
+z <- (y)/(Fmax.ini - y)#
+if (any(abs(z)==Inf)) z[abs(z)==Inf] <- NA#
+b.ini = coef(lm(x ~ log(z)))[2]#
+d.ini = 1#
+init <- c(Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+w = 0.25#
+#
+# Estimation du modele#
+	best <- nlm(f = sce.5P, p = as.vector(init), xobs = x, yobs = y, w = w)#
+  best#
+#
+# R?cup?ration des param?tres#
+	best.Fb <- best$estimate[1]#
+	best.Fmax <- best$estimate[2]#
+	best.b <- best$estimate[3]#
+	best.c <- best$estimate[4]#
+	best.d <- best$estimate[5]#
+#
+# Diagnostic de r?gression#
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)#
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)#
+  yfitInit <- Richard(x, Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+	plot(x, y, lwd = 2, cex = 1.25, col = "grey25", xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+	lines(yfitInit ~ x, lwd = 3, lty = 3, col = "grey75")#
+	lines(yfit ~ newx, lwd = 3, col = "dodgerblue2")#
+	# abline(h = c(best.Fb, best.Fmax))#
+#
+	informTable <- c()#
+	for(i in seq(0.05, 1, by = 0.05)){#
+		yTarg = (best.Fmax + best.Fb)*i#
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+#
+		aTarg <- 10^(xTarg)#
+		alpha = 10^(-aTarg)#
+		Pmax = 1 - alpha#
+		Q <- qchisq(p = Pmax, df = ncol(X))#
+#
+		inform <- which(D>=Q)#
+		nInform <- length(inform)#
+		nNonInform <- nrow(eset) - nInform#
+		informTable <- rbind(informTable, c(Prop = i, Alpha = signif(alpha, 3), nInf = nInform, nonInf = nNonInform))#
+	}#
+#
+	informTable
+initialisation des parametres#
+Fb.ini = 0	                                                 # min(y)#
+Fmax.ini = max(y)	                                           #*1.05#
+c.ini = 0                                                    #(max(x) + min(x))/2#
+z <- (y)/(Fmax.ini - y)#
+if (any(abs(z)==Inf)) z[abs(z)==Inf] <- NA#
+b.ini = coef(lm(x ~ log(z)))[2]#
+d.ini = 1#
+init <- c(Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+w = 0.5#
+#
+# Estimation du modele#
+	best <- nlm(f = sce.5P, p = as.vector(init), xobs = x, yobs = y, w = w)#
+  best#
+#
+# R?cup?ration des param?tres#
+	best.Fb <- best$estimate[1]#
+	best.Fmax <- best$estimate[2]#
+	best.b <- best$estimate[3]#
+	best.c <- best$estimate[4]#
+	best.d <- best$estimate[5]#
+#
+# Diagnostic de r?gression#
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)#
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)#
+  yfitInit <- Richard(x, Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+	plot(x, y, lwd = 2, cex = 1.25, col = "grey25", xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+	lines(yfitInit ~ x, lwd = 3, lty = 3, col = "grey75")#
+	lines(yfit ~ newx, lwd = 3, col = "dodgerblue2")#
+	# abline(h = c(best.Fb, best.Fmax))#
+#
+	informTable <- c()#
+	for(i in seq(0.05, 1, by = 0.05)){#
+		yTarg = (best.Fmax + best.Fb)*i#
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+#
+		aTarg <- 10^(xTarg)#
+		alpha = 10^(-aTarg)#
+		Pmax = 1 - alpha#
+		Q <- qchisq(p = Pmax, df = ncol(X))#
+#
+		inform <- which(D>=Q)#
+		nInform <- length(inform)#
+		nNonInform <- nrow(eset) - nInform#
+		informTable <- rbind(informTable, c(Prop = i, Alpha = signif(alpha, 3), nInf = nInform, nonInf = nNonInform))#
+	}#
+#
+	informTable
+x <- as.numeric(log10(Score$aValues))[1:16]#
+y <- as.numeric(Score$Trace)[1:16]#
+#
+if(any(is.na(y) | is.na(x))){#
+  na.index <- which(is.na(y) | is.na(x))#
+  y <- y[-na.index]#
+  x <- x[-na.index]#
+}#
+#
+# initialisation des parametres#
+Fb.ini = 0	                                                 # min(y)#
+Fmax.ini = max(y)	                                           #*1.05#
+c.ini = 0                                                    #(max(x) + min(x))/2#
+z <- (y)/(Fmax.ini - y)#
+if (any(abs(z)==Inf)) z[abs(z)==Inf] <- NA#
+b.ini = coef(lm(x ~ log(z)))[2]#
+d.ini = 1#
+init <- c(Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+w = 0.5#
+#
+# Estimation du modele#
+	best <- nlm(f = sce.5P, p = as.vector(init), xobs = x, yobs = y, w = w)#
+  best#
+#
+# R?cup?ration des param?tres#
+	best.Fb <- best$estimate[1]#
+	best.Fmax <- best$estimate[2]#
+	best.b <- best$estimate[3]#
+	best.c <- best$estimate[4]#
+	best.d <- best$estimate[5]#
+#
+# Diagnostic de r?gression#
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)#
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)#
+  yfitInit <- Richard(x, Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+	plot(x, y, lwd = 2, cex = 1.25, col = "grey25", xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+	lines(yfitInit ~ x, lwd = 3, lty = 3, col = "grey75")#
+	lines(yfit ~ newx, lwd = 3, col = "dodgerblue2")#
+	# abline(h = c(best.Fb, best.Fmax))#
+#
+	informTable <- c()#
+	for(i in seq(0.05, 1, by = 0.05)){#
+		yTarg = (best.Fmax + best.Fb)*i#
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+#
+		aTarg <- 10^(xTarg)#
+		alpha = 10^(-aTarg)#
+		Pmax = 1 - alpha#
+		Q <- qchisq(p = Pmax, df = ncol(X))#
+#
+		inform <- which(D>=Q)#
+		nInform <- length(inform)#
+		nNonInform <- nrow(eset) - nInform#
+		informTable <- rbind(informTable, c(Prop = i, Alpha = signif(alpha, 3), nInf = nInform, nonInf = nNonInform))#
+	}#
+#
+	informTable
+x <- as.numeric(log10(Score$aValues))[1:14]#
+y <- as.numeric(Score$Trace)[1:14]#
+#
+if(any(is.na(y) | is.na(x))){#
+  na.index <- which(is.na(y) | is.na(x))#
+  y <- y[-na.index]#
+  x <- x[-na.index]#
+}#
+#
+# initialisation des parametres#
+Fb.ini = 0	                                                 # min(y)#
+Fmax.ini = max(y)	                                           #*1.05#
+c.ini = 0                                                    #(max(x) + min(x))/2#
+z <- (y)/(Fmax.ini - y)#
+if (any(abs(z)==Inf)) z[abs(z)==Inf] <- NA#
+b.ini = coef(lm(x ~ log(z)))[2]#
+d.ini = 1#
+init <- c(Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+w = 0.5#
+#
+# Estimation du modele#
+	best <- nlm(f = sce.5P, p = as.vector(init), xobs = x, yobs = y, w = w)#
+  best#
+#
+# R?cup?ration des param?tres#
+	best.Fb <- best$estimate[1]#
+	best.Fmax <- best$estimate[2]#
+	best.b <- best$estimate[3]#
+	best.c <- best$estimate[4]#
+	best.d <- best$estimate[5]#
+#
+# Diagnostic de r?gression#
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)#
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)#
+  yfitInit <- Richard(x, Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+	plot(x, y, lwd = 2, cex = 1.25, col = "grey25", xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+	lines(yfitInit ~ x, lwd = 3, lty = 3, col = "grey75")#
+	lines(yfit ~ newx, lwd = 3, col = "dodgerblue2")#
+	# abline(h = c(best.Fb, best.Fmax))#
+#
+	informTable <- c()#
+	for(i in seq(0.05, 1, by = 0.05)){#
+		yTarg = (best.Fmax + best.Fb)*i#
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+#
+		aTarg <- 10^(xTarg)#
+		alpha = 10^(-aTarg)#
+		Pmax = 1 - alpha#
+		Q <- qchisq(p = Pmax, df = ncol(X))#
+#
+		inform <- which(D>=Q)#
+		nInform <- length(inform)#
+		nNonInform <- nrow(eset) - nInform#
+		informTable <- rbind(informTable, c(Prop = i, Alpha = signif(alpha, 3), nInf = nInform, nonInf = nNonInform))#
+	}#
+#
+	informTable
+w = 0.25#
+#
+# Estimation du modele#
+	best <- nlm(f = sce.5P, p = as.vector(init), xobs = x, yobs = y, w = w)#
+  best#
+#
+# R?cup?ration des param?tres#
+	best.Fb <- best$estimate[1]#
+	best.Fmax <- best$estimate[2]#
+	best.b <- best$estimate[3]#
+	best.c <- best$estimate[4]#
+	best.d <- best$estimate[5]#
+#
+# Diagnostic de r?gression#
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)#
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)#
+  yfitInit <- Richard(x, Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+	plot(x, y, lwd = 2, cex = 1.25, col = "grey25", xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+	lines(yfitInit ~ x, lwd = 3, lty = 3, col = "grey75")#
+	lines(yfit ~ newx, lwd = 3, col = "dodgerblue2")#
+	# abline(h = c(best.Fb, best.Fmax))#
+#
+	informTable <- c()#
+	for(i in seq(0.05, 1, by = 0.05)){#
+		yTarg = (best.Fmax + best.Fb)*i#
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+#
+		aTarg <- 10^(xTarg)#
+		alpha = 10^(-aTarg)#
+		Pmax = 1 - alpha#
+		Q <- qchisq(p = Pmax, df = ncol(X))#
+#
+		inform <- which(D>=Q)#
+		nInform <- length(inform)#
+		nNonInform <- nrow(eset) - nInform#
+		informTable <- rbind(informTable, c(Prop = i, Alpha = signif(alpha, 3), nInf = nInform, nonInf = nNonInform))#
+	}#
+#
+	informTable
+x <- as.numeric(log10(Score$aValues))[1:15]#
+y <- as.numeric(Score$Trace)[1:15]#
+#
+if(any(is.na(y) | is.na(x))){#
+  na.index <- which(is.na(y) | is.na(x))#
+  y <- y[-na.index]#
+  x <- x[-na.index]#
+}#
+#
+# initialisation des parametres#
+Fb.ini = 0	                                                 # min(y)#
+Fmax.ini = max(y)	                                           #*1.05#
+c.ini = 0                                                    #(max(x) + min(x))/2#
+z <- (y)/(Fmax.ini - y)#
+if (any(abs(z)==Inf)) z[abs(z)==Inf] <- NA#
+b.ini = coef(lm(x ~ log(z)))[2]#
+d.ini = 1#
+init <- c(Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+w = 0.25#
+#
+# Estimation du modele#
+	best <- nlm(f = sce.5P, p = as.vector(init), xobs = x, yobs = y, w = w)#
+  best#
+#
+# R?cup?ration des param?tres#
+	best.Fb <- best$estimate[1]#
+	best.Fmax <- best$estimate[2]#
+	best.b <- best$estimate[3]#
+	best.c <- best$estimate[4]#
+	best.d <- best$estimate[5]#
+#
+# Diagnostic de r?gression#
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)#
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)#
+  yfitInit <- Richard(x, Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+	plot(x, y, lwd = 2, cex = 1.25, col = "grey25", xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+	lines(yfitInit ~ x, lwd = 3, lty = 3, col = "grey75")#
+	lines(yfit ~ newx, lwd = 3, col = "dodgerblue2")#
+	# abline(h = c(best.Fb, best.Fmax))#
+#
+	informTable <- c()#
+	for(i in seq(0.05, 1, by = 0.05)){#
+		yTarg = (best.Fmax + best.Fb)*i#
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+#
+		aTarg <- 10^(xTarg)#
+		alpha = 10^(-aTarg)#
+		Pmax = 1 - alpha#
+		Q <- qchisq(p = Pmax, df = ncol(X))#
+#
+		inform <- which(D>=Q)#
+		nInform <- length(inform)#
+		nNonInform <- nrow(eset) - nInform#
+		informTable <- rbind(informTable, c(Prop = i, Alpha = signif(alpha, 3), nInf = nInform, nonInf = nNonInform))#
+	}#
+#
+	informTable
+a.values <- c(1e-4, 1e-3, 1e-2, 0.025, 0.05, 0.1, 0.25, 0.5,  1, 2, 4, 8, 16, 24)#
+#
+useTrace = T#
+Score <- c()#
+#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	lInf <- length(inform)#
+#
+	tmpScore <- NA#
+#
+	if(lInf>0 & lInf<nrow(eset)){#
+		tmpNselect <- length(inform)#
+		subInf <- t(eset[inform,])#
+		tmpS2 <- var(as.vector(as.matrix(subInf)))#
+		tmpScore <- c(aValues = a, nProbes = tmpNselect, S2 = tmpS2)#
+#
+			# calculer les variances sur les axes1 et 2 de la nouvelle acp ?#
+		if(useTrace){#
+			acpTest <- prcomp(subInf)#
+			tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+			tmpScore <- c(tmpScore, Trace = tmpTrace)#
+		}#
+		if(lInf == nrow(eset)) tmpScore <- Score[nrow(Score),]#
+		Score <- rbind(Score, tmpScore)#
+		}#
+	}#
+#
+rownames(Score) <- seq(1, nrow(Score))#
+Score <- as.data.frame(Score)#
+Score
+colnames(Score) <- c("aValues", "nProbes", "S2", "Trace")#
+#
+plot(log10(Score$aValues), Score$Trace, xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")
+lInf
+nrow(eset)
+a.values <- c(1e-4, 1e-3, 1e-2, 0.025, 0.05, 0.1, 0.25, 0.5,  1, 2, 4, 8, 16, 24)#
+#
+useTrace = T#
+Score <- c()#
+#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	lInf <- length(inform)#
+#
+	tmpScore <- NA#
+#
+	if(lInf>0 & lInf<nrow(eset)){#
+		tmpNselect <- length(inform)#
+		subInf <- t(eset[inform,])#
+		tmpS2 <- var(as.vector(as.matrix(subInf)))#
+		tmpScore <- c(aValues = a, nProbes = tmpNselect, S2 = tmpS2)#
+#
+			# calculer les variances sur les axes1 et 2 de la nouvelle acp ?#
+		if(useTrace){#
+			acpTest <- prcomp(subInf)#
+			tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+			tmpScore <- c(tmpScore, Trace = tmpTrace)#
+			}#
+		}#
+		if(lInf == nrow(eset)) tmpScore <- Score[nrow(Score),]#
+		Score <- rbind(Score, tmpScore)#
+	}#
+#
+rownames(Score) <- seq(1, nrow(Score))#
+Score <- as.data.frame(Score)#
+Score#
+#
+# colnames(Score) <- c("aValues", "nProbes", "S2", "Trace")#
+#
+plot(log10(Score$aValues), Score$Trace, xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")
+a.values <- c(1e-4, 1e-3, 1e-2, 0.025, 0.05, 0.1, 0.25, 0.5,  1, 2, 4, 8, 16, 24, 32)#
+#
+useTrace = T#
+Score <- c()#
+#
+for(a in a.values){#
+	alpha = 10^(-a)#
+	Pmax = 1 - alpha#
+	Q <- qchisq(p = Pmax, df = ncol(X))#
+	inform <- which(D<=Q)#
+	lInf <- length(inform)#
+#
+	tmpScore <- NA#
+#
+	if(lInf>0 & lInf<nrow(eset)){#
+		tmpNselect <- length(inform)#
+		subInf <- t(eset[inform,])#
+		tmpS2 <- var(as.vector(as.matrix(subInf)))#
+		tmpScore <- c(aValues = a, nProbes = tmpNselect, S2 = tmpS2)#
+#
+			# calculer les variances sur les axes1 et 2 de la nouvelle acp ?#
+		if(useTrace){#
+			acpTest <- prcomp(subInf)#
+			tmpTrace <- sum(diag(var(acpTest$x[,1:min(10, ncol(acpTest$x))])))#
+			tmpScore <- c(tmpScore, Trace = tmpTrace)#
+			}#
+		}#
+		if(lInf == nrow(eset)) tmpScore <- c(aValues = a, Score[nrow(Score), -1])#
+		Score <- rbind(Score, tmpScore)#
+	}#
+#
+rownames(Score) <- seq(1, nrow(Score))#
+Score <- as.data.frame(Score)#
+Score#
+#
+# colnames(Score) <- c("aValues", "nProbes", "S2", "Trace")#
+#
+plot(log10(Score$aValues), Score$Trace, xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")
+x <- as.numeric(log10(Score$aValues))#
+y <- as.numeric(Score$Trace)#
+#
+if(any(is.na(y) | is.na(x))){#
+  na.index <- which(is.na(y) | is.na(x))#
+  y <- y[-na.index]#
+  x <- x[-na.index]#
+}#
+#
+# initialisation des parametres#
+Fb.ini = 0	                                                 # min(y)#
+Fmax.ini = max(y)	                                           #*1.05#
+c.ini = 0                                                    #(max(x) + min(x))/2#
+z <- (y)/(Fmax.ini - y)#
+if (any(abs(z)==Inf)) z[abs(z)==Inf] <- NA#
+b.ini = coef(lm(x ~ log(z)))[2]#
+d.ini = 1#
+init <- c(Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+w = 0.25#
+#
+# Estimation du modele#
+	best <- nlm(f = sce.5P, p = as.vector(init), xobs = x, yobs = y, w = w)#
+  best#
+#
+# R?cup?ration des param?tres#
+	best.Fb <- best$estimate[1]#
+	best.Fmax <- best$estimate[2]#
+	best.b <- best$estimate[3]#
+	best.c <- best$estimate[4]#
+	best.d <- best$estimate[5]#
+#
+# Diagnostic de r?gression#
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)#
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)#
+  yfitInit <- Richard(x, Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+	plot(x, y, lwd = 2, cex = 1.25, col = "grey25", xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+	lines(yfitInit ~ x, lwd = 3, lty = 3, col = "grey75")#
+	lines(yfit ~ newx, lwd = 3, col = "dodgerblue2")#
+	# abline(h = c(best.Fb, best.Fmax))#
+#
+	informTable <- c()#
+	for(i in seq(0.05, 1, by = 0.05)){#
+		yTarg = (best.Fmax + best.Fb)*i#
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+#
+		aTarg <- 10^(xTarg)#
+		alpha = 10^(-aTarg)#
+		Pmax = 1 - alpha#
+		Q <- qchisq(p = Pmax, df = ncol(X))#
+#
+		inform <- which(D>=Q)#
+		nInform <- length(inform)#
+		nNonInform <- nrow(eset) - nInform#
+		informTable <- rbind(informTable, c(Prop = i, Alpha = signif(alpha, 3), nInf = nInform, nonInf = nNonInform))#
+	}#
+#
+	informTable
+w = 0#
+#
+# Estimation du modele#
+	best <- nlm(f = sce.5P, p = as.vector(init), xobs = x, yobs = y, w = w)#
+  best#
+#
+# R?cup?ration des param?tres#
+	best.Fb <- best$estimate[1]#
+	best.Fmax <- best$estimate[2]#
+	best.b <- best$estimate[3]#
+	best.c <- best$estimate[4]#
+	best.d <- best$estimate[5]#
+#
+# Diagnostic de r?gression#
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)#
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)#
+  yfitInit <- Richard(x, Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+	plot(x, y, lwd = 2, cex = 1.25, col = "grey25", xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+	lines(yfitInit ~ x, lwd = 3, lty = 3, col = "grey75")#
+	lines(yfit ~ newx, lwd = 3, col = "dodgerblue2")#
+	# abline(h = c(best.Fb, best.Fmax))#
+#
+	informTable <- c()#
+	for(i in seq(0.05, 1, by = 0.05)){#
+		yTarg = (best.Fmax + best.Fb)*i#
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+#
+		aTarg <- 10^(xTarg)#
+		alpha = 10^(-aTarg)#
+		Pmax = 1 - alpha#
+		Q <- qchisq(p = Pmax, df = ncol(X))#
+#
+		inform <- which(D>=Q)#
+		nInform <- length(inform)#
+		nNonInform <- nrow(eset) - nInform#
+		informTable <- rbind(informTable, c(Prop = i, Alpha = signif(alpha, 3), nInf = nInform, nonInf = nNonInform))#
+	}#
+#
+	informTable
+w = 0.5#
+#
+# Estimation du modele#
+	best <- nlm(f = sce.5P, p = as.vector(init), xobs = x, yobs = y, w = w)#
+  best#
+#
+# R?cup?ration des param?tres#
+	best.Fb <- best$estimate[1]#
+	best.Fmax <- best$estimate[2]#
+	best.b <- best$estimate[3]#
+	best.c <- best$estimate[4]#
+	best.d <- best$estimate[5]#
+#
+# Diagnostic de r?gression#
+	newx <- seq(min(log(a.values)), max(log(a.values)), len = 100)#
+	yfit <- Richard(newx, best.Fb, best.Fmax, best.b, best.c, best.d)#
+  yfitInit <- Richard(x, Fb.ini, Fmax.ini, b.ini, c.ini, d.ini)#
+#
+	plot(x, y, lwd = 2, cex = 1.25, col = "grey25", xlab = "Log[-Log(alpha)]", ylab = "Trace of Cov matrix")#
+	lines(yfitInit ~ x, lwd = 3, lty = 3, col = "grey75")#
+	lines(yfit ~ newx, lwd = 3, col = "dodgerblue2")#
+	# abline(h = c(best.Fb, best.Fmax))#
+#
+	informTable <- c()#
+	for(i in seq(0.05, 1, by = 0.05)){#
+		yTarg = (best.Fmax + best.Fb)*i#
+		xTarg = best.c - best.b*log(((best.Fmax - best.Fb)/(yTarg - best.Fb))^(1/best.d) - 1)#
+#
+		aTarg <- 10^(xTarg)#
+		alpha = 10^(-aTarg)#
+		Pmax = 1 - alpha#
+		Q <- qchisq(p = Pmax, df = ncol(X))#
+#
+		inform <- which(D>=Q)#
+		nInform <- length(inform)#
+		nNonInform <- nrow(eset) - nInform#
+		informTable <- rbind(informTable, c(Prop = i, Alpha = signif(alpha, 3), nInf = nInform, nonInf = nNonInform))#
+	}#
+#
+	informTable
+source("/Users/fredcommo/Documents/Stats/Fred_Scripts/GeneRequest.v6.R")
+GeneRequest.v6("EGFR", "gene")
+gsearch <- function (geneSymb, database){#
+	# geneSymb : use official symbols. Multiple requests are accepted, e.g. "EGFR, Homo sapiens"#
+	# database : have a look at 'http://eutils.ncbi.nlm.nih.gov/entrez/query/static/eutils_help.html' for details#
+	# 		on available databases and other e-tools as well.#
+	# ! This function can return more than one Id !#
+	gsrch.stem <- "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?"#
+	gsrch.mode <- paste("db=", database, "&retmode=xml","&term=", sep = "")#
+	URL <- paste(gsrch.stem, gsrch.mode, geneSymb, sep = "")#
+	doc <- xmlTreeParse(URL, isURL = TRUE, useInternalNodes = TRUE)#
+	sapply(c("//Id"), xpathApply, doc = doc, fun = xmlValue)#
+	}#
+gsummary <- function (id, database){#
+	# id is provided by gsearch()#
+	# database : let's have a look at 'http://eutils.ncbi.nlm.nih.gov/entrez/query/static/eutils_help.html' for details#
+	# 		on available databases and other e-tools as well.#
+	sum.stem <- "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?"#
+	sum.mode <- paste("db=", database, "&id=", sep = "")#
+	doc <- xmlTreeParse(paste(sum.stem, sum.mode, id, sep = ""), isURL = TRUE, useInternalNodes = TRUE)#
+	sapply(c("//Item"), xpathApply, doc = doc, fun = xmlValue)#
+	}
+geneSymb = "EGFR"
+database = "gene"
+gname = "EGFR"
+Symb <- "Not found"#
+		Name <- Org <- Chr <- Cytoband <- Chr.start <- Chr.end <- GBId <- NA			# in case of error only !
+ids <- unlist(gsearch(paste(gname, "[symbol] homo sapiens", sep = ""), database = DB))					#homo sapiens
+DB = "gene"
+ids <- unlist(gsearch(paste(gname, "[symbol] homo sapiens", sep = ""), database = DB))					#homo sapiens
+ids
+Id <- ids[j]
+Id <- ids[1]
+Id
+Id <- gettext(ids[1])
+Id
+source("/Users/fredcommo/Documents/Stats/Fred_Scripts/GeneRequest.v6.R")
+GeneRequest("EGFR", "gene")
+GeneRequest.v6("EGFR", "gene")
+myList <- c("EGFR", "MYC", "ERBB2", "ERCC1")
+GeneRequest.v6(myList, "gene")
+GeneRequest.v6(myList, "gene", verbose = F)
+myList <- c("EGFR", "MYC", "ERBB2", "ERCC1", "TP53", "FGFR1", "FGF4", "ALK", "CCND1", "RPTOR")
+GeneRequest.v6(myList, "gene", verbose = F)
+source("/Users/fredcommo/Documents/Stats/Fred_Scripts/GeneRequest.v6.R")
+GeneRequest.v6(myList, "gene", verbose = F)
+source("/Users/fredcommo/Documents/Stats/Fred_Scripts/GeneRequest.v6.R")
+GeneRequest.v6(myList, "gene", verbose = F)
+GeneRequest.v6(myList, verbose = F)
+GeneRequest.v6(myList)
+source("/Users/fredcommo/Documents/Stats/Fred_Scripts/GeneRequest.v6.R")
+GeneRequest.v6(myList)
+myList <- c("EGFR", "MYC", "ERBB2", "ERCC1", "TP53", "FGFR1", "FGF4", "ALK", "CCND1", "RPTOR", "Brig")
+GeneRequest.v6(myList)
+source("/Users/fredcommo/Documents/Stats/Fred_Scripts/GeneRequest.v6.R")
+GeneRequest.v6(myList)
+source("/Users/fredcommo/Documents/Stats/Fred_Scripts/GeneRequest.v6.R")
+GeneRequest.v6(myList)
+plot.new()
+librayr(tcltk)
+library(tcltk)
+ls()
+getwd()
+ls()
+listfiles()
+filelist()
+fileslist()
+?files
+file.list()
+files.list()
+list.files()
+exist("Script matrice Agilent.txt")
+exists("Script matrice Agilent.txt")
+?exists
+files.exists("Script matrice Agilent.txt")
+file.exists("Script matrice Agilent.txt")

@@ -1,0 +1,28 @@
+
+f2 <- function(a, b, c, theta, phi){
+	x = a *cos(theta)*cos(phi)
+	y = b*sin(theta)*cos(phi)
+	z = c*sin(phi)
+	return(cbind(x, y, z))
+	}
+
+T <- P <- seq(-pi, pi, len = 2000)
+X <- f2(6, 4, 4, sample(T), sample(P))
+cloud(X[,3]~X[,1]*X[,2], xlim = range(X), ylim = range(X), zlim = range(X), cex = 0.25)
+
+graph3D.9(X, size = 0.2, xlim = range(X), ylim = range(X), zlim = range(X))
+
+acp <- prcomp(X)
+plot(X[,2], X[,3], asp = 1, pch = "+", cex = sqrt(X[,1]^2))
+plot(X[,1], X[,2], asp = 1, pch = "+", cex = sqrt(X[,3]^2))
+plot(acp$x, asp = 1, pch = "+", cex = sqrt(acp$x[,3]^2))
+pairs(acp$x)
+biplot(acp, col = c("white", "black"))
+
+tmp <- c()
+for(i in 1:20) tmp <- cbind(tmp, rnorm(nrow(X), 0, 2))
+
+acp2 <- prcomp(t(cbind(X,tmp)))
+plot(acp2$x[,1:2], asp = 1, pch = 19, cex = 1.5, col = c(rep("blue", 3), rep("red", 20)))
+identify(acp2$x[,1:2])
+abline(h = 0, v = 0, lty = 2)

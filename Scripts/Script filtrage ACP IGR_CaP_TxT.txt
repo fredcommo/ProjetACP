@@ -1,0 +1,141 @@
+# Recherche de genes informatifs par ACP
+# A partir de la matrice virtuelle initiale
+
+op <- par(no.readonly = TRUE)
+memory.limit(size = 4000)
+library(MASS)
+library(KernSmooth)
+library(mvtnorm)
+library(lattice)
+library(limma)
+library(multtest)
+library(gplots)
+library(mclust)
+library(impute)
+library(survival)
+source("D:\\Stats\\Doc R\\Scripts R\\graph3D.8.R")
+source("D:\\Stats\\Doc R\\Scripts R\\rb.colors.R")
+source("D:\\Stats\\Doc R\\Scripts R\\plot.express.R")
+source("D:\\Stats\\Doc R\\Scripts R\\heatmap.3.R")
+source("D:\\Stats\\Doc R\\Scripts R\\rot3D.2.R")
+
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")
+
+##############################################################################
+
+	# dose response IGR-CaP1/TXT
+data.address <- "F:/Sauvegarde Portable/Projets individuels/A.Chauchereau/transcriptome/P21_NN_GE/P21_NN_GE_LR_ComBat.txt"
+info.address <- "F:/Sauvegarde Portable/Projets individuels/A.Chauchereau/transcriptome/P21_NN_GE/P21_NN_GE_CaP_Annot.txt"
+eset <- read.table(data.address, header = T, sep = "\t")
+infos <- read.table(info.address, header = T, sep = "\t")
+grp <- factor(infos$R_Dose)
+
+
+##############################################################################
+	# ACPs initiales
+if(any(is.na(eset))) eset <- impute.knn(as.matrix(eset))$data
+eset <- as.data.frame(eset)
+acp1 <- prcomp(scale(eset))			# genes = obs ; exp = variables
+acp2 <- prcomp(scale(t(eset)))			# exp = obs ; genes = variables
+
+par(mfrow=c(2,2))
+	plot(acp1, main = "Genes")
+	plot(acp2, main = "Experiments")
+	plot(acp1$x, asp = 1, cex = 0.25, col = "royalblue4", main = "Genes")
+	plot(acp2$x, asp = 1, pch = 19, col = mycol[grp], main = "Experiments")
+	legend("topright", legend = levels(grp), pch = 19, col = mycol[1:nlevels(grp)], bty = "n")
+par(op)
+
+d <- bkde2D(scale(acp1$x[,1:2]), bandwidth = 0.5)
+image(d$x1, d$x2, d$fhat, col = colorpanel(100, "navy", "grey80", "yellow"))
+contour(d$x1, d$x2, d$fhat, col = "red", add = T)
+persp(d$x1, d$x2, d$fhat, col = "cyan", border = NA, shade = T, theta = 15, phi = 45)
+
+# pairs(acp1$x[,1:5], asp = 1, cex = 0.25, col = palette[grp], main = "Genes")
+
+	# Choix
+X <- as.data.frame(acp1$x[,2:3])
+X <- scale(X)
+X <- as.data.frame(X)
+
+# mtest <- Mclust(X, G = 2, method = "V")
+par(mfrow = c(2, 5))
+n.select <- c()
+for(a in seq(2, 10)){
+	alpha = 10^(-a)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	D <- apply(X^2, 1, sum)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	plot(X, cex = 0.2, pch = 19, col = ifelse(D>=Q, "royalblue4", "grey"), asp = 1)
+	points(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)
+	inform <- which(D>=Q)
+	n.select <- rbind(n.select, c(a, length(inform)))
+	title(main = paste("Number of informative probes\n", length(inform), "of", nrow(eset), "(alpha =", alpha, ")"))
+	}
+barplot(n.select[,2], names = seq(2, 10), col = grey(seq(0.2, 0.8, len = 10)), xlab = "alpha", ylab = "Number of selected probes", beside = T)
+par(op)
+
+# pairs(acp1$x[Index,1:5], cex = 0.25, col = ifelse(D>=Q, "royalblue4", "grey"), pch = 19)
+
+
+	# Filtre et ACPs finales
+a = 4
+alpha = 10^(-a)
+Qmax = 1 - alpha
+Q <- qchisq(p = Qmax, df = ncol(X)-1)
+D <- apply(X^2, 1, sum)
+inform <- which(D>=Q)
+
+sub1 <- eset[inform,]
+acp3 <- prcomp(sub1)			# genes = obs ; exp = variables
+acp4 <- prcomp(t(sub1))			# exp = obs ; genes = variables
+
+par(mfrow=c(2,2))
+	PC3 <- acp2$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(acp2$x, asp = 1, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (all probes)")
+
+	plot(acp3$x[,1:2], cex = 0.2, col = "royalblue4", main = "", asp = 1)
+	title(main = paste("Number of informative probes\n", length(inform), "of", nrow(eset), "(alpha =", alpha, ")"))
+
+	plot.new()
+	legend("center", legend = levels(grp), col= mycol[1:nlevels(grp)], pch = 19, cex = 1.5, bty = "n" )
+
+	PC3 <- acp4$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(acp4$x, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (informative probes)", asp = 1)
+par(op)
+
+
+# graph3D.8(acp4, bold = T, class1 = grp)
+
+heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(ncol(sub1)), key = TRUE, trace = "none", density = "none",
+	labRow = grp, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = mycol[grp])
+
+
+	# Plot 3D multiples
+Path = "D:/Stats/Projet ACP/Images2"
+tags <- mycol[grp]
+tags[is.na(tags)] <- "grey"
+rot3D.2(acp4$x[,1:3], rotation = "y.axis", Col = tags, ptSize = 2, n.image = 24, folder = Path)
+
+
+		library(seqinr)
+		# acc_num à rehercher
+		acc = "AA868688"
+		prot = "myprot"
+		search <- where.is.this.acc(acc, stopAtFirst = TRUE)
+		choosebank(search)
+		id <- paste("AC=", acc, sep = "")
+		Seq <- getSequence(myquery <- query(prot, id)$req, as.string = T)[[1]]
+		Name <- getName(myquery)
