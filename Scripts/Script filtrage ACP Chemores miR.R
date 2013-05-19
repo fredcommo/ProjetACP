@@ -1,0 +1,196 @@
+# Recherche de genes informatifs par ACP
+# A partir de la matrice virtuelle initiale
+
+op <- par(no.readonly = TRUE)
+memory.limit(size = 4000)
+library(MASS)
+library(KernSmooth)
+library(mvtnorm)
+library(lattice)
+library(limma)
+library(multtest)
+library(gplots)
+library(mclust)
+library(impute)
+library(survival)
+source("D:\\Stats\\Doc R\\Scripts R\\graph3D.8.R")
+source("D:\\Stats\\Doc R\\Scripts R\\rb.colors.R")
+source("D:\\Stats\\Doc R\\Scripts R\\plot.express.R")
+source("D:\\Stats\\Doc R\\Scripts R\\heatmap.3.R")
+source("D:\\Stats\\Doc R\\Scripts R\\rot3D.2.R")
+
+mycol <- c("royalblue2", "indianred1", "seagreen3", "goldenrod2", "blue3", "purple1", "burlywood2", "firebrick1", "green4", "deeppink1", "deepskyblue2")
+
+##############################################################################
+
+	# Chemores miR T vs. N appariés
+data.address <- "D:/Projets individuels/Meta Analyses Poumon/Lung DNA Repair/Lung Chemores GE/MIR/dataCombined_NQ_noCtrl_noFlag_redMir_NA15_KNN_copie_v4 (hsa).txt"
+info.address <- "D:/Projets individuels/Meta Analyses Poumon/Lung DNA Repair/Lung Chemores GE/MIR/target_v3.txt"
+eset <- read.table(data.address, header = T, sep = "\t")
+infos <- read.table(info.address, header = T, sep = "\t")
+infos <- infos[order(infos$FileName),]
+miRs <- eset[,1:2]
+eset <- eset[,-c(1:2)]
+eset <- eset[,order(colnames(eset))]
+grp <- factor(infos$Status)
+
+
+	# Chemores miR T uniquement
+data.address <- "D:/Projets individuels/Meta Analyses Poumon/Lung DNA Repair/Lung Chemores GE/MIR/dataCombined_NQ_noCtrl_noFlag_redMir_NA15_KNN_copie_v4 (hsa).txt"
+info.address <- "D:/Projets individuels/Meta Analyses Poumon/Lung DNA Repair/Lung Chemores GE/MIR/target_v3.txt"
+eset <- read.table(data.address, header = T, sep = "\t")
+infos <- read.table(info.address, header = T, sep = "\t")
+infos <- infos[order(infos$FileName),]
+miRs <- eset[,1:2]
+eset <- eset[,-c(1:2)]
+eset <- eset[,order(colnames(eset))]
+T.index <- which(infos$Status=="Tumor")
+eset <- eset[,T.index]
+infos <- infos[T.index,]
+grp <- factor(infos$Disease)
+
+
+##############################################################################
+	# ACPs initiales
+if(any(is.na(eset))) eset <- impute.knn(as.matrix(eset))$data
+eset <- as.data.frame(eset)
+acp1 <- prcomp(scale(eset))			# genes = obs ; exp = variables
+acp2 <- prcomp(scale(t(eset)))			# exp = obs ; genes = variables
+
+par(mfrow=c(2,2))
+	plot(acp1, main = "Genes")
+	plot(acp2, main = "Experiments")
+	plot(acp1$x, asp = 1, cex = 0.25, col = "royalblue4", main = "Genes")
+	plot(acp2$x, asp = 1, pch = 19, col = mycol[grp], main = "Experiments")
+	legend("topright", legend = levels(grp), pch = 19, col = mycol[1:nlevels(grp)], bty = "n")
+par(op)
+
+d <- bkde2D(scale(acp1$x[,1:2]), bandwidth = 0.5)
+image(d$x1, d$x2, d$fhat, col = colorpanel(100, "navy", "grey80", "yellow"))
+contour(d$x1, d$x2, d$fhat, col = "red", add = T)
+persp(d$x1, d$x2, d$fhat, col = "cyan", border = NA, shade = T, theta = 15, phi = 45)
+
+# pairs(acp1$x[,1:5], asp = 1, cex = 0.25, col = palette[grp], main = "Genes")
+
+	# Choix
+X <- as.data.frame(acp1$x[,2:3])
+X <- scale(X)
+X <- as.data.frame(X)
+
+# mtest <- Mclust(X, G = 2, method = "V")
+par(mfrow = c(2, 5))
+n.select <- c()
+for(a in seq(2, 10)){
+	alpha = 10^(-a)
+	Qmax = 1 - alpha
+	Q <- qchisq(p = Qmax, df = ncol(X)-1)
+	D <- apply(X^2, 1, sum)
+	# pt.col <- ifelse(D>=Q, "red", "grey")
+
+	theta <- seq(0, 90, by = 1)
+	x1 <- sqrt(Q)*cos(theta)
+	y1 <- sqrt(Q)*sin(theta)
+
+	plot(X, cex = 0.2, pch = 19, col = ifelse(D>=Q, "royalblue4", "grey"), asp = 1)
+	points(y1~x1, col = "red", cex = 0.25, pch = 8, xlim = range(X), asp = 1)
+	inform <- which(D>=Q)
+	n.select <- rbind(n.select, c(a, length(inform)))
+	title(main = paste("Number of informative probes\n", length(inform), "of", nrow(eset), "(alpha =", alpha, ")"))
+	}
+barplot(n.select[,2], names = seq(2, 10), col = grey(seq(0.2, 0.8, len = 10)), xlab = "alpha", ylab = "Number of selected probes", beside = T)
+par(op)
+
+# pairs(acp1$x[Index,1:5], cex = 0.25, col = ifelse(D>=Q, "royalblue4", "grey"), pch = 19)
+
+
+	# Filtre et ACPs finales
+a = 4
+alpha = 10^(-a)
+Qmax = 1 - alpha
+Q <- qchisq(p = Qmax, df = ncol(X)-1)
+D <- apply(X^2, 1, sum)
+inform <- which(D>=Q)
+
+sub1 <- eset[inform,]
+acp3 <- prcomp(sub1)			# genes = obs ; exp = variables
+acp4 <- prcomp(t(sub1))			# exp = obs ; genes = variables
+
+par(mfrow=c(2,2))
+	PC3 <- acp2$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(acp2$x, asp = 1, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (all probes)")
+
+	plot(acp3$x[,1:2], cex = 0.2, col = "royalblue4", main = "", asp = 1)
+	title(main = paste("Number of informative probes\n", length(inform), "of", nrow(eset), "(alpha =", alpha, ")"))
+
+	plot.new()
+	legend("center", legend = levels(grp), col= mycol[1:nlevels(grp)], pch = 19, cex = 1.5, bty = "n" )
+
+	PC3 <- acp4$x[,3]
+	mp = min(PC3)
+	Mp = max(PC3)
+	pcex = 2*(PC3-mp)/(Mp - mp) + 0.5
+	plot(acp4$x, pch = 19, cex = pcex, col = mycol[grp], main = "Experiments (informative probes)", asp = 1)
+par(op)
+
+
+# graph3D.8(acp4, bold = T, class1 = grp)
+
+heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(ncol(sub1)), key = TRUE, trace = "none", density = "none",
+	labRow = grp, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = mycol[grp])
+
+
+	# Plot 3D multiples
+Path = "D:/Stats/Projet ACP/Images2"
+tags <- mycol[grp]
+tags[is.na(tags)] <- "grey"
+rot3D.2(acp4$x[,1:3], rotation = "y.axis", Col = tags, ptSize = 2, n.image = 24, folder = Path)
+
+
+
+	# Extra-plot pour Chemores : tag des %cell.Tum
+		NAs <- which(is.na(infos$TumCellPercent))
+		pcells <- infos$TumCellPercent[-NAs]
+		T.index <- which(infos$Status=="Tumor")
+
+		plot(acp4$x, pch = 19, cex = 1.5, col = mycol[grp], main = "Experiments (informative probes)", asp = 1)
+		points(acp4$x[T.index,1:2], pch = 1, cex = 1, col = ifelse(pcells>=50, "red", "white"))
+	
+	# Extra-plot pour Chemores miR: tag des adk vs. scc
+
+		grp2 <- infos$Disease
+		grp3 <- ifelse(grp == "Normal", "grey70", ifelse(grp2=="AC", "darkred", "seagreen"))
+		plot(acp4$x, pch = 19, cex = 1.5, col = grp3, main = "Experiments (informative probes)", asp = 1)
+		points(acp4$x[,1:2], pch = 19, cex = 0.5, col = c("black", "white")[grp2])
+
+		heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(ncol(sub1)), key = TRUE, trace = "none", density = "none",
+			labRow = grp, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = grp3)
+
+		graph3D.8(acp4, bold = T, class1 = grp3, class2 = grp2, size = 1.5)
+		plot.new(); legend("center", legend = levels(grp:grp2), pch = c(19, 19, 17, 17), col = unique(mycol[1:nlevels(grp:grp2)]), cex = 1.5, bty = "n")
+
+	# Extra-plot pour Chemores miR: CEM clustering
+
+		mclust.model <- Mclust(acp4$x[,1:2]); mclust.model$parameters$pro
+		mclust.class <- mclust.model$classification
+		mclust.class <- factor(as.vector(mclust.class))
+
+		heatmap.3(t(sub1), scale = "column", Method = "ward", col = greenred(ncol(sub1)), key = TRUE, trace = "none", density = "none",
+			labRow = mclust.class, cexRow = 0.5, labCol = "", cexCol = 0.2, RowSideColors = mycol[mclust.class])
+
+		grp2 <- as.vector(infos$Disease)
+		grp3 <- ifelse(grp == "Normal", "Normal", grp2)
+		table(mclust.class, grp3)
+
+
+		library(seqinr)
+		# acc_num à rehercher
+		acc = "AA868688"
+		prot = "myprot"
+		search <- where.is.this.acc(acc, stopAtFirst = TRUE)
+		choosebank(search)
+		id <- paste("AC=", acc, sep = "")
+		Seq <- getSequence(myquery <- query(prot, id)$req, as.string = T)[[1]]
+		Name <- getName(myquery)
