@@ -43,6 +43,11 @@ idx <- which(samples$TumCellPercent>=50)
 samples <- samples[idx,]
 eset <- eset[,idx]
 
+# Consider tumors only
+idx <- which(samples$Status == 'Tumor')
+samples <- samples[idx,]
+eset <- eset[,idx]
+
 # Add nonspecific probes
 Random <- .generateRandom1(eset, nrow(eset)*.25)
 colnames(Random) <- colnames(eset)
@@ -53,13 +58,13 @@ M <- apply(eset, 1, mean, na.rm = TRUE)
 S <- apply(eset, 1, sd, na.rm = TRUE)
 
 grps <- samples$Status
-addTN <- .generateGrps(M, S, ncol(eset), nrow(eset)*.1, grps = grps, minP = 0.5, maxP = 0.8)
+addTN <- .generateGrps(M, S, ncol(eset), nrow(eset)*.01, grps = grps, minP = 0.5, maxP = 0.8)
 tnProbes <- addTN$Data
 colnames(tnProbes) <- colnames(eset)
 rownames(tnProbes) <- paste0('status', seq(1, nrow(tnProbes)))
 
 grps <- ifelse(grepl('AC|SCC', samples$Disease), as.character(samples$Disease), NA)
-addDis <- .generateGrps(M, S, ncol(eset), nrow(eset)*.1, grps = grps, minP = 0.5, maxP = 0.8)
+addDis <- .generateGrps(M, S, ncol(eset), nrow(eset)*.01, grps = grps, minP = 0.5, maxP = 0.8)
 disProbes <- addDis$Data
 colnames(disProbes) <- colnames(eset)
 rownames(disProbes) <- paste0('disease', seq(1, nrow(disProbes)))
@@ -72,7 +77,7 @@ trueDist <- .computeBounds(M, S)
 par(mar = c(5, 6, 4, 2), cex.main = 2.5, cex.lab = 1.75, cex.axis = 1.25)
 boxplot(log10(trueDist$S) ~ factor(trueDist$M), names = round(unique(trueDist$M), 2), 
         outpch = 19, outcex = 0.25, col = 'steelblue2', outcol = 'steelblue4',
-        xlab = 'Means', ylab = 'Log10(Sdev)')
+        xlab = 'Means', ylab = 'Log10(Sdev)', main = 'Sdev Vs. mean distribution')
 par(op)
 
   # Visualize the added probes
@@ -84,11 +89,14 @@ disProbesM <- apply(disProbes, 1, mean, na.rm = TRUE)
 disProbesS <- apply(disProbes, 1, sd, na.rm = TRUE)
 
 par(mar = c(5, 6, 4, 2), cex.main = 2.5, cex.lab = 1.75, cex.axis = 1.25)
-smoothScatter(M, log10(S), ylim = range(-1.5, 1), colramp = colorRampPalette(c("white", "steelblue")))
+smoothScatter(M, log10(S), ylim = range(-1.5, 1),
+              colramp = colorRampPalette(c("white", "steelblue")), main = 'Added probes')
 points(randomM, log10(randomS), pch = 19, cex = 1, col = 'grey75')
 points(randomM, log10(randomS))
 points(tnProbesM, log10(tnProbesS), pch = 19, cex = 1, col = 'red3')
 points(disProbesM, log10(disProbesS), pch = 19, cex = 1, col = 'blue3')
+legend('bottomright', legend = c('original', 'random added', 'tissue added', 'tumType added'),
+       pch = c(19,1,19,19), col = c('steelblue', 'black', 'red3', 'blue3'), cex = 1.25, bty = 'n')
 par(op)
 
 # Plot original PCA
@@ -96,22 +104,29 @@ Cols = ifelse(samples$Disease == 'AC', 'orangered',
               ifelse(samples$Disease == 'SCC', 'darkblue', 'grey'))
 Pch <- ifelse(samples$Status == 'Tumor', 19, 1)
 pcaSamples <- prcomp(t(eset))
+par(mar = c(5, 6, 4, 2), cex.main = 2.5, cex.lab = 1.75, cex.axis = 1.25)
 plotPCA(pcaSamples, pch = Pch, col = Cols, main = 'PCA on original data set')
+legend('bottomright', legend = c('Normal', 'Adk', 'Sq'), pch = c(1, 19, 19),
+       col = c('black', 'orangered', 'darkblue'), cex = 1.25, bty = 'n')
+par(op)
 
 # PCA Filtering
 pcaProbes <- prcomp(eset)
+par(mar = c(5, 6, 4, 2), cex.main = 2.5, cex.lab = 1.75, cex.axis = 1.25)
 score <- pcaTrace1.1(eset, pcaProbes, main = 'Information curve', lwd = 5)
+par(op)
 Info <- pcaInfo(score); Info
 
 probeClass <- rep('lightblue', nrow(eset))
-probeClass[grep('random',rownames(eset))] <- 'green'
+probeClass[grep('random',rownames(eset))] <- 'black'
 probeClass[grep('status',rownames(eset))] <- 'red3'
 probeClass[grep('disease',rownames(eset))] <- 'blue3'
-pairs(pcaProbes$x[,1:3], col = probeClass, pch = 19, cex = 1)
+pairs(pcaProbes$x[,1:3], col = probeClass, pch = c(1, 19, 19, 19)[factor(probeClass)], cex = 1)
 
 
 # Visualize filtered PCA at different cutoffs
-Cols = ifelse(samples$Disease == 'AC', 'orangered', 'darkblue')
+Cols = ifelse(samples$Disease == 'AC', 'orangered',
+              ifelse(samples$Disease == 'SCC', 'darkblue', 'grey'))
 Pch <- ifelse(samples$Status == 'Tumor', 19, 1)
 par(mfrow = c(3, 2))
 redDot = 10^(1/score$lModel$x.intercept)
